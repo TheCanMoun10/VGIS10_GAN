@@ -12,7 +12,7 @@ Clone this repo into your prefered folder:
 `https://github.com/TheCanMoun10/VGIS10_GAN`
 
 
-Make sure your your Ubuntu distribution is up to date (this repo uses 20.04):
+Make sure your Ubuntu distribution is up to date (this repo uses 20.04):
 `sudo apt update`
 
 `sudo apt upgrade`
