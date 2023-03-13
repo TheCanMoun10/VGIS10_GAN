@@ -3,7 +3,7 @@ from __future__ import print_function, division
 import os, random, time, copy
 from skimage import io, transform
 import numpy as np
-import libmr
+#import libmr
 import pandas as pd
 import os.path as path
 import scipy.io as sio
