@@ -8,7 +8,7 @@ config_HRNet folder is from [HRNet](https://github.com/HRNet/HRNet-Semantic-Segm
 ## Install procedure:
 Made on WSL2.
 
-Clone this repo into you prefered folder:
+Clone this repo into your prefered folder:
 `https://github.com/TheCanMoun10/VGIS10_GAN`
 
 
@@ -26,6 +26,7 @@ Make sure to install the gcc and g++ compilers:
 An anaconda environment file is provided to set up the dependencies for this GAN-network, to install use:
 
 `conda env create -f environment.yml`
+
 `conda activate VGIS10GAN`
 
 Next install pytorch in the anaconda environment:
