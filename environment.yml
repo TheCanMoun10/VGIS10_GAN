@@ -1,0 +1,21 @@
+name: VGIS10GAN
+channels:
+ - pytorch
+ - conda-forge 
+ - defaults
+dependencies:
+ - python=3.9
+ - scikit-image
+ - scipy
+ - pandas
+ - cmake
+ - Cython
+ - pip
+ - pip:
+    - numpy
+    - libmr
+    - matplotlib
+    - Pillow
+
+    
+ 
