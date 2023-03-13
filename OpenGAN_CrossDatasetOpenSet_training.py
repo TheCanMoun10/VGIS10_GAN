@@ -17,8 +17,8 @@ import matplotlib.pyplot as plt
 import PIL.Image
 from io import BytesIO
 from skimage import data, img_as_float
-from skimage.measure import compare_ssim as ssim
-from skimage.measure import compare_psnr as psnr
+from skimage.metrics import structural_similarity as ssim
+from skimage.metrics import peak_signal_noise_ratio as psnr
 
 import torch
 from torch.utils.data import Dataset, DataLoader
