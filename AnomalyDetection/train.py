@@ -21,8 +21,8 @@ device = torch.device(DEVICE)
 # Parameters for the network:
 RANDOM_SEED = 42
 LEARNING_RATE = 0.001
-BATCH_SIZE = 10
-NUM_EPOCHS = 2
+BATCH_SIZE = 64
+NUM_EPOCHS = 10
 
 IMG_SIZE = 32
 N_CLASSES = 10
@@ -61,7 +61,5 @@ optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 cost = nn.CrossEntropyLoss() # TODO: Change this gradient ascent loss (L1 or L2).
 
 if __name__ == '__main__':
-    torch.manual_seed(RANDOM_SEED)
-    model, optimizer, train_loss, model_accuracy  = training_loop(model, cost, optimizer, train_loader, test_loader, NUM_EPOCHS, device)
-    
-    plot_losses(train_loss)
+   torch.manual_seed(RANDOM_SEED)
+   model, optimizer, train_loss, model_accuracy  = training_loop(model, cost, optimizer, train_loader, test_loader, NUM_EPOCHS, device)
