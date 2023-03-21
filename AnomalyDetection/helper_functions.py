@@ -11,21 +11,22 @@ import matplotlib.pyplot as plt
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 device = torch.device(DEVICE)
 
-def plot_losses(train_losses):
+def plot_losses(train_losses, model_accuracy):
     '''
     Function for plotting training and validation losses
     Takes as input train_losses and valid_losses as matrices and plots the losses.
     '''
-    plt.style.use('seaborn')
+    plt.style.use('seaborn-v0_8')
     
     train_losses = np.array(train_losses)
+    print(f'Accuracy of the network on the 10000 test images: {model_accuracy} %')
     
     fig, ax = plt.subplots(figsize = (8, 4.5))
     
     ax.plot(train_losses, color='blue', label='Training loss')
-    ax.set(title='Loss over epochs', xlabel='Epochs', ylabel='Loss')
+    ax.set(title='Loss over steps', xlabel='Steps', ylabel='Loss')
     ax.legend()
-    fig.show()
+    plt.show()
     
     plt.style.use('default')
     
@@ -35,7 +36,7 @@ def train(train_loader, model, cost, optimizer, num_epochs, device):
     Function for the training step of the training loop.
     '''
     total_step = len(train_loader)
-    run_loss = 0
+    train_losses = []
     
     print(f'Using device: ', device)
     if device.type == 'cuda':
@@ -50,22 +51,23 @@ def train(train_loader, model, cost, optimizer, num_epochs, device):
             # Forward Pass:
             outputs = model(images)
             loss = cost(outputs, labels)
-            run_loss += loss.item() * images.size(0)
+        
             
             # Backward pass (learning step) and optimization:
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             
-            if (i+1) % 3000 == 0:
+            if (i+1) % 400 == 0:
                 print(f'{datetime.now().time().replace(microsecond=0)} --- ' 
                     f'Epoch [{epoch+1}/{num_epochs}]\t'
                     f'Step [{i+1}/{total_step}]\t'
                     f'Training Loss: {loss.item():.4f}'
                     )
+                train_losses.append(loss.item())
      
-    train_loss = run_loss / total_step
-    return model, optimizer, train_loss
+    
+    return model, optimizer, train_losses
 
 def test(test_loader, model, device):
     '''
@@ -84,28 +86,24 @@ def test(test_loader, model, device):
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
+            
+    model_accuracy = 100 * correct / total
 
-    return total, correct
+    return total, correct, model_accuracy
 
 def training_loop(model, cost, optimizer, train_loader, test_loader, num_epochs, device):
     '''
     Function defining the training loop
-    '''
-    
-    train_losses = []
-
+    '''  
     # Iniate training on the model:
     model, optimizer, train_loss = train(train_loader, model, cost, optimizer, num_epochs, device)
-    train_losses.append(train_loss)
-        
+    
     # Testing
-    total_predictions, correct_predictions = test(test_loader, model, device)
-    model_accuracy = 100 * correct_predictions / total_predictions
-
+    _, _, model_accuracy = test(test_loader, model, device)
     
-    print(f'Accuracy of the network on the 10000 test images: {model_accuracy} %')
+    plot_losses(train_loss, model_accuracy)
     
-    return model, optimizer, train_losses, model_accuracy
+    return model, optimizer, train_loss, model_accuracy
 
 
     
