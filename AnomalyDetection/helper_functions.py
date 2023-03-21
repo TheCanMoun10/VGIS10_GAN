@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 device = torch.device(DEVICE)
 
-def plot_losses(train_losses, model_accuracy):
+def plot_losses(train_losses, model_accuracy, num_epochs):
     '''
     Function for plotting training and validation losses
     Takes as input train_losses and valid_losses as matrices and plots the losses.
@@ -24,8 +24,9 @@ def plot_losses(train_losses, model_accuracy):
     fig, ax = plt.subplots(figsize = (8, 4.5))
     
     ax.plot(train_losses, color='blue', label='Training loss')
-    ax.set(title='Loss over steps', xlabel='Steps', ylabel='Loss')
+    ax.set(title='Loss over epochs', xlabel='Epochs', ylabel='Loss')
     ax.legend()
+    plt.xlim(0, num_epochs)
     plt.show()
     
     plt.style.use('default')
@@ -37,7 +38,7 @@ def train(train_loader, model, cost, optimizer, num_epochs, device):
     '''
     total_step = len(train_loader)
     train_losses = []
-    
+        
     print(f'Using device: ', device)
     if device.type == 'cuda':
         print(torch.cuda.get_device_name(0))
@@ -52,21 +53,20 @@ def train(train_loader, model, cost, optimizer, num_epochs, device):
             outputs = model(images)
             loss = cost(outputs, labels)
         
-            
             # Backward pass (learning step) and optimization:
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             
-            if (i+1) % 400 == 0:
+            
+            if (i+1) % 375 == 0:
                 print(f'{datetime.now().time().replace(microsecond=0)} --- ' 
                     f'Epoch [{epoch+1}/{num_epochs}]\t'
                     f'Step [{i+1}/{total_step}]\t'
                     f'Training Loss: {loss.item():.4f}'
                     )
                 train_losses.append(loss.item())
-     
-    
+                
     return model, optimizer, train_losses
 
 def test(test_loader, model, device):
@@ -101,7 +101,7 @@ def training_loop(model, cost, optimizer, train_loader, test_loader, num_epochs,
     # Testing
     _, _, model_accuracy = test(test_loader, model, device)
     
-    plot_losses(train_loss, model_accuracy)
+    plot_losses(train_loss, model_accuracy, num_epochs)
     
     return model, optimizer, train_loss, model_accuracy
 

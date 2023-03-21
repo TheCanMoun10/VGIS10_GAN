@@ -20,9 +20,9 @@ device = torch.device(DEVICE)
 
 # Parameters for the network:
 RANDOM_SEED = 42
-LEARNING_RATE = 0.001
-BATCH_SIZE = 64
-NUM_EPOCHS = 10
+LEARNING_RATE = 0.0001
+BATCH_SIZE = 32
+NUM_EPOCHS = 25
 
 IMG_SIZE = 32
 N_CLASSES = 10
@@ -40,14 +40,14 @@ transforms = transforms.Compose([
 
 # Download and create dataset:
 train_dataset = datasets.MNIST(
-                               root='./datasets',
+                               root='./AnomalyDetection/datasets',
                                train = True,
                                transform = transforms,
                                download = True
                             )
         
 test_dataset = datasets.MNIST(
-                               root='./datasets',
+                               root='./AnomalyDetection/datasets',
                                train = False,
                                transform = transforms
                             )
