@@ -24,12 +24,13 @@ LEARNING_RATE = 0.0001
 BATCH_SIZE = 32
 NUM_EPOCHS = 25
 
+NUM_CHANNELS = 1
+NUM_CLASSES = 1
+NUM_LEVELS = 3
+
 IMG_SIZE = 32
 N_CLASSES = 10
 
-# Parameters for prediction plot:
-ROW_IMAGES = 10
-NUM_ROWS = 5
 
 # define transforms
 transforms = transforms.Compose([
