@@ -42,19 +42,25 @@ class LeNet5(nn.Module):
 class Block(nn.Module):
     def __init__(self, inChannels, outChannels):
         super().__init__()
-        self.conv1 = nn.Conv2d(inChannels, outChannels, kernel_size=3)
+        self.conv1 = nn.Conv2d(inChannels, outChannels, kernel_size=5, padding=1)
+        self.bn1 = nn.BatchNorm2d(outChannels)
         self.relu = nn.ReLU()
-        self.conv2 = nn.Conv2d(outChannels, outChannels, kernel_size=3)
+        self.conv2 = nn.Conv2d(outChannels, outChannels, kernel_size=5, padding=1)
+        self.bn2 = nn.BatchNorm2d(outChannels)
         
     def forward(self, x):
         x = self.conv1(x)
+        x = self.bn1(x)
         x = self.relu(x)
+        
         x = self.conv2(x)
+        x = self.bn2(x)
+        x = self.relu(x)
         
         return x
     
 class Encoder(nn.Module):
-    def __init__(self, channels=(3, 16, 32, 64, 128)):
+    def __init__(self, channels=(3, 64, 128, 256, 512, 1028)):
         super().__init__()
         self.encBlocks = nn.ModuleList([Block(channels[i], channels[i+1]) for i in range(len(channels)-1)])
         self.pool = nn.MaxPool2d((2,2))
@@ -70,7 +76,7 @@ class Encoder(nn.Module):
         return blockOutputs
     
 class Decoder(nn.Module):
-    def __init__(self, channels=(128, 32, 16)):
+    def __init__(self, channels=(1024, 512, 256, 128, 64)):
         super().__init__()
         self.channels = channels
         self.upConvs = nn.ModuleList([nn.ConvTranspose2d(channels[i], channels[i+1], 2, 2) for i in range(len(channels)-1)])
@@ -81,7 +87,7 @@ class Decoder(nn.Module):
             x = self.upConvs[i](x)
             
             encFeat = self.crop(encFeatures[i], x)
-            x = torch.cat([x, encFeat], dim=1)
+            x = torch.cat([x, encFeat], dim=1) #Skip-connection
             x = self.dec_blocks[i](x)
             
         return x
