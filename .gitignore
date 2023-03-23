@@ -124,11 +124,18 @@ venv.bak/
 .dmypy.json
 dmypy.json
 
-# Image files
+# Image / video files
 *.jpg
 *.png
 *.JPEG
 *.PNG
+*.avi
+*.mpeg
+*.mp4
 
-# mat files
+# MATLAB files
 *.mat
+*.m
+
+# csv files
+*.csv
