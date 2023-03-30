@@ -32,12 +32,12 @@ conda env create -f environment.yml
 * The codes are basically based on the prediction method, and you can easily implement this as
 ```bash
 https://github.com/TheCanMoun10/VGIS10_GAN
-cd projects/MNAD/code
-python Train.py # for training
+cd AnomalyDetection
+python Train_recons_wo_mem.py # for training
 ```
 * You can freely define parameters with your own settings like
 ```bash
-python Train.py --gpus 1 --dataset_path 'your_dataset_directory' --dataset_type avenue --exp_dir 'your_log_directory'
+python Train_recons_wo_mem.py --gpus 1 --dataset_path 'your_dataset_directory' --dataset_type avenue --exp_dir 'your_log_directory'
 ```
 
 ## Evaluation
@@ -47,13 +47,13 @@ python Train.py --gpus 1 --dataset_path 'your_dataset_directory' --dataset_type 
 python Evaluate_recons_wo_mem.py --t_length 2 --alpha 0.7 --th 0.015 --dataset_type avenue --model_dir ./path/to/model.pth
 ```
 
-# DATASETS FOR THE GAN CAN BE FOUND HERE.
+## Datasets.
 * CUHK Avenue [dataset](https://github.com/StevenLiuWen/ano_pred_cvpr2018)
 
 These datasets are from an official github of "Future Frame Prediction for Anomaly Detection - A New Baseline (CVPR 2018)".
 
 Download the datasets into ``datasets`` folder, like ``./datasets/avenue/``
 
-## Other datasets that can be used:
+### Other datasets that can be used:
 * ShanghaiTech [dataset](https://github.com/StevenLiuWen/ano_pred_cvpr2018)
 * USCD Ped2 [dataset](https://github.com/StevenLiuWen/ano_pred_cvpr2018)
