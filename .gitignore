@@ -142,3 +142,11 @@ dmypy.json
 
 # csv files
 *.csv
+
+# wandb files
+wandb/
+*.log
+*.wandb
+
+# pytorch files
+*.pth

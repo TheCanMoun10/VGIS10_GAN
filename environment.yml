@@ -4,18 +4,20 @@ channels:
  - conda-forge 
  - defaults
 dependencies:
- - python=3.9
+ - python=3.8
+ - pytorch=2.0.0=py3.8_cuda11.8_cudnn8.7.0_0
+ - cuda-toolkit=11.8.0
  - scikit-image
+ - scikit-learn
  - scipy
  - pandas
- - cmake
- - Cython
  - pip
  - pip:
     - numpy
-    - libmr
+    - torchvision=0.15.0
     - matplotlib
     - Pillow
-
-    
+    - opencv-python
+    - natsort
+    - wandb
  
