@@ -150,3 +150,10 @@ wandb/
 
 # pytorch files
 *.pth
+*.pt
+
+# css
+*.css
+
+# zip
+*.zip
