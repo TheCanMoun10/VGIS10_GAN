@@ -53,8 +53,8 @@ parser.add_argument('--test_batch_size', type=int, default=1, help='batch size f
 parser.add_argument('--epochs', type=int, default=60, help='number of epochs for training')
 parser.add_argument('--loss_compact', type=float, default=0.01, help='weight of the feature compactness loss')
 parser.add_argument('--loss_separate', type=float, default=0.01, help='weight of the feature separateness loss')
-parser.add_argument('--h', type=int, default=256, help='height of input images')
-parser.add_argument('--w', type=int, default=256, help='width of input images')
+parser.add_argument('--h', type=int, default=64, help='height of input images')
+parser.add_argument('--w', type=int, default=64, help='width of input images')
 parser.add_argument('--c', type=int, default=3, help='channel of input images')
 parser.add_argument('--lr', type=float, default=2e-5, help='initial learning rate')
 parser.add_argument('--t_length', type=int, default=2, help='length of the frame sequences')
@@ -154,12 +154,13 @@ loss_func_mse = nn.MSELoss(reduction='none')
 
 # Training
 best_test = float("inf")
-#m_items = F.normalize(torch.rand((args.msize, args.mdim), dtype=torch.float), dim=1).cuda() # Initialize the memory items
+# m_items = F.normalize(torch.rand((args.msize, args.mdim), dtype=torch.float), dim=1).cuda() # Initialize the memory items
 
 
 for epoch in range(args.epochs):
     labels_list = []
     example_images = []
+    input_images = []
     model.train()
     start = time.time()
     train_loss = AverageMeter()
@@ -175,30 +176,29 @@ for epoch in range(args.epochs):
         optimizer.zero_grad()
         loss_pixel = torch.mean(loss_func_mse(outputs, imgs))
         loss = loss_pixel
-        if args.nega_loss == True:
-            loss = -args.nega_value*loss 
         # loss = loss_pixel + args.loss_compact * compactness_loss + args.loss_separate * separateness_loss
         train_loss.update(loss.item(),imgs.size(0))
+        if args.nega_loss == True:
+            loss = -args.nega_value*loss 
         loss.backward(retain_graph=True)
         optimizer.step()
         
-        if(j%250 == 0):
+        if(j%100 == 0):
+            input_image = wandb.Image(imgs[0].detach().cpu().permute(1,2,0).numpy(), caption="Input image")
             image = wandb.Image(pixels, caption=f"Generated anomaly_{j+1}_epoch{epoch+1}")
             example_images.append(image)
+            input_images.append(input_image)
             print(
                 f'Epoch [{epoch+1}/{args.epochs}]\t'
                 f'Step [{j+1}/{len(train_batch)}]\t'
                 f'Training Loss: {loss.item():.4f}'
                 )
-            wandb.log({'examples': example_images})
+            wandb.log({'Generator Images': example_images, 'Input images': input_images})
         
         wandb.log({'Train_loss_avg':train_loss.avg ,'Loss': loss})
             
     if(epoch%5 == 0):
-        if epoch == 0:
-            torch.save(model, os.path.join(log_dir, f'{epoch}_negLoss{args.nega_loss}_model.pth'))
-        else:
-            torch.save(model, os.path.join(log_dir, f'{epoch+1}_negLoss{args.nega_loss}_model.pth'))
+        torch.save(model, os.path.join(log_dir, f'{epoch}_negLoss{args.nega_loss}_model.pth'))
         #torch.save(m_items, os.path.join(log_dir, f'{epoch}_m_items.pt')) 
     scheduler.step()
     
@@ -208,7 +208,7 @@ for epoch in range(args.epochs):
     print('----------------------------------------')
     print(f'Train loss avg: {train_loss.avg}')
     
-torch.save(model, os.path.join(log_dir, f'{epoch+1}_negLoss{args.nega_loss}_model.pth'))
+torch.save(model, os.path.join(log_dir, f'{epoch}_negLoss{args.nega_loss}_model.pth'))
 #torch.save(m_items, os.path.join(log_dir, f'{epoch}_m_items.pt')) 
 print('Training is finished')
 print(log_dir)
