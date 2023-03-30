@@ -47,7 +47,7 @@ parser.add_argument('--alpha', type=float, default=1, help='weight for the anoma
 parser.add_argument('--th', type=float, default=0.015, help='threshold for test updating')
 parser.add_argument('--num_workers', type=int, default=2, help='number of workers for the train loader')
 parser.add_argument('--num_workers_test', type=int, default=1, help='number of workers for the test loader')
-parser.add_argument('--dataset_type', type=str, default='ped2', help='type of dataset: ped2, avenue, shanghai')
+parser.add_argument('--dataset_type', type=str, default='avenue', help='type of dataset: ped2, avenue, shanghai')
 parser.add_argument('--dataset_path', type=str, default='./datasets/', help='directory of data')
 #parser.add_argument('--exp_dir', type=str, default='log', help='directory of log')
 parser.add_argument('--model_dir', type=str, help='directory of model')
@@ -55,24 +55,36 @@ parser.add_argument('--m_items_dir', type=str, help='directory of model')
 parser.add_argument('--nega_loss', type=bool, default=False, help='Apply negative loss to model')
 parser.add_argument('--nega_value', type=float, default=0.02, help='Value to degrade loss')
 parser.add_argument('--mode', type=str, default="eval")
+parser.add_argument('--img_norm', type=str, default='mnad_norm', help='Define image normalization for dataloader: mnad_norm [-1, 1], dyn_norm [0, 1]')
 
 args = parser.parse_args()
+
+# Image directory for saving evaluation images.
+today = datetime.datetime.today()
+timestring = f"{today.year}{today.month}{today.day}"+ "{:02d}{:02d}".format(today.hour, today.minute) #format YYYYMMDDHHMM
+image_dir = os.path.join('./evals', 'figures', args.dataset_type, timestring)
+if not os.path.exists(image_dir):
+    os.makedirs(image_dir)
+
+if args.img_norm == "dyn_norm":
+    norm = "Dynamic normalization [0, 1]"
+else:
+    norm = "MNAD normalization [-1, 1]"
 
 wandb.init(project="VGIS10_MNAD",
            
            config={
-               "mode" : args.mode,
-               "time_step": args.t_length,
+               "timestamp" : timestring,
                "architecture" : args.model,
                "dataset": args.dataset_type,
-               "batch size" : args.test_batch_size,
+               "batch size" : args.batch_size,
                "negative loss" : args.nega_loss,
-
+               "mode" : args.mode,
+               "Image normalization" : norm,
                },
             name=f'{args.mode}_{args.dataset_type}_batch{args.test_batch_size}_timestep{args.t_length}'
            
            )
-
 torch.manual_seed(2020)
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
@@ -92,7 +104,7 @@ test_folder = args.dataset_path+args.dataset_type+"/testing/frames"
 # Loading dataset
 test_dataset = DataLoader(test_folder, transforms.Compose([
              transforms.ToTensor(),            
-             ]), resize_height=args.h, resize_width=args.w, time_step=args.t_length-1,num_pred = 0)
+             ]), resize_height=args.h, resize_width=args.w, time_step=args.t_length-1,num_pred = 0, img_norm=args.img_norm)
 
 test_size = len(test_dataset)
 
@@ -105,7 +117,6 @@ loss_func_mse = nn.MSELoss(reduction='none')
 model = torch.load(args.model_dir)
 model.cuda()
 # m_items = torch.load(args.m_items_dir)
-
 
 labels = np.load('./data/frame_labels_'+args.dataset_type+'.npy')
 if args.dataset_type == 'shanghaitech':
@@ -189,28 +200,21 @@ for video in sorted(videos_list):
 # print('AUC: ', accuracy*100, '%')
 
 from scipy.ndimage import rotate
-output = output_images[50]
-image = input_images[50]
+output = output_images[0]
+image = input_images[0]
 output = np.rot90(output, k=0, axes=(1,0))
 image = np.rot90(image, k=0, axes=(1,0))
 
-cv2.imshow("Real image", image)
-
-cv2.imshow("fake image", output)
+# cv2.imshow("Real image", image)
+# cv2.imshow("fake image", output)
 
 horizontal = np.concatenate((image, output), axis=1)
 
 cv2.imshow("Side by side real image and fake image", horizontal)
 cv2.waitKey(0)
 
-today = datetime.datetime.today()
-timestring = f"{today.year}-{today.month}-{today.day}-{today.hour}:{today.minute}"
-image_dir = os.path.join('./evals', 'figures', args.dataset_type, timestring)
-if not os.path.exists(image_dir):
-    os.makedirs(image_dir)
-
-cv2.imwrite(os.path.join(image_dir, f'{args.dataset_type}_Fake_image_negloss{args.nega_loss}.jpg'), 255*output)
-cv2.imwrite(os.path.join(image_dir, f'{args.dataset_type}_Real_image_negloss{args.nega_loss}.jpg'), 255*image)
-cv2.imwrite(os.path.join(image_dir, f'{args.dataset_type}_Side_by_side_negloss{args.nega_loss}.jpg'), 255*horizontal)
+cv2.imwrite(os.path.join(image_dir, f'{args.dataset_type}_{args.img_norm}_bs{args.test_batch_size}_Fake_image_negloss{args.nega_loss}.jpg'), 255*output)
+cv2.imwrite(os.path.join(image_dir, f'{args.dataset_type}_{args.img_norm}_bs{args.test_batch_size}_Real_image_negloss{args.nega_loss}.jpg'), 255*image)
+cv2.imwrite(os.path.join(image_dir, f'{args.dataset_type}_{args.img_norm}_bs{args.test_batch_size}_Side_by_side_negloss{args.nega_loss}.jpg'), 255*horizontal)
 
 wandb.finish()

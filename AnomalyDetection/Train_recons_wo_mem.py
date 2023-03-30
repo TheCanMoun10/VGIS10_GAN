@@ -70,21 +70,31 @@ parser.add_argument('--exp_dir', type=str, default='log', help='directory of log
 parser.add_argument('--nega_loss', type=bool, default=False, help='Apply negative loss to model')
 parser.add_argument('--nega_value', type=float, default=0.02, help='Value to degrade loss')
 parser.add_argument('--mode', type=str, default="train")
+parser.add_argument('--img_norm', type=str, default='mnad_norm', help='Define image normalization for dataloader: mnad_norm [-1, 1], dyn_norm [0, 1]')
 
 args = parser.parse_args()
 
+today = datetime.datetime.today()
+timestring = f"{today.year}{today.month}{today.day}" + "{:02d}{:02d}".format(today.hour, today.minute) #format YYYYMMDDHHMM
+if args.img_norm == "dyn_norm":
+    norm = "Dynamic normalization [0, 1]"
+else:
+    norm = "MNAD normalization [-1, 1]"
+    
 wandb.init(project="VGIS10_MNAD",
            
            config={
                "learning_rate": args.lr,
+               "timestamp" : timestring,
                "architecture" : args.model,
                "dataset": args.dataset_type,
                "epochs" : args.epochs,
                "batch size" : args.batch_size,
                "negative loss" : args.nega_loss,
                "mode" : args.mode,
+               "Image normalization" : norm,
                },
-            name=f'{args.mode}_{args.dataset_type}_batch{args.batch_size}_epochs{args.epochs}_lr{args.lr}'
+            name=f'{args.mode}_{args.dataset_type}_batch{args.batch_size}_epochs{args.epochs}_lr{args.lr}_{args.img_norm}'
            
            )
 
@@ -108,11 +118,11 @@ test_folder = args.dataset_path+args.dataset_type+"/testing/frames"
 # Loading dataset
 train_dataset = DataLoader(train_folder, transforms.Compose([
              transforms.ToTensor(),          
-             ]), resize_height=args.h, resize_width=args.w, time_step=args.t_length-1,num_pred = 0)
+             ]), resize_height=args.h, resize_width=args.w, time_step=args.t_length-1,num_pred = 0, img_norm=args.img_norm)
 
 test_dataset = DataLoader(test_folder, transforms.Compose([
              transforms.ToTensor(),            
-             ]), resize_height=args.h, resize_width=args.w, time_step=args.t_length-1,num_pred = 0)
+             ]), resize_height=args.h, resize_width=args.w, time_step=args.t_length-1,num_pred = 0, img_norm=args.img_norm)
 
 train_size = len(train_dataset)
 test_size = len(test_dataset)
@@ -136,7 +146,7 @@ model.cuda()
 wandb.watch(model)
 
 # Report the training process
-log_dir = os.path.join('./exp', args.dataset_type, f'{args.exp_dir}_lr{args.lr}')
+log_dir = os.path.join('./exp', args.dataset_type, f'{args.exp_dir}_lr{args.lr}_{timestring}_{args.img_norm}')
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
 
@@ -165,15 +175,15 @@ for epoch in range(args.epochs):
         optimizer.zero_grad()
         loss_pixel = torch.mean(loss_func_mse(outputs, imgs))
         loss = loss_pixel
-        # loss = loss_pixel + args.loss_compact * compactness_loss + args.loss_separate * separateness_loss
-        train_loss.update(loss.item(),imgs.size(0))
         if args.nega_loss == True:
             loss = -args.nega_value*loss 
+        # loss = loss_pixel + args.loss_compact * compactness_loss + args.loss_separate * separateness_loss
+        train_loss.update(loss.item(),imgs.size(0))
         loss.backward(retain_graph=True)
         optimizer.step()
         
         if(j%250 == 0):
-            image = wandb.Image(pixels, caption=f"Generated anomaly_{j}_epoch{epoch+1}")
+            image = wandb.Image(pixels, caption=f"Generated anomaly_{j+1}_epoch{epoch+1}")
             example_images.append(image)
             print(
                 f'Epoch [{epoch+1}/{args.epochs}]\t'
@@ -186,9 +196,9 @@ for epoch in range(args.epochs):
             
     if(epoch%5 == 0):
         if epoch == 0:
-            torch.save(model, os.path.join(log_dir, f'{epoch}_model.pth'))
+            torch.save(model, os.path.join(log_dir, f'{epoch}_negLoss{args.nega_loss}_model.pth'))
         else:
-            torch.save(model, os.path.join(log_dir, f'{epoch+1}_model.pth'))
+            torch.save(model, os.path.join(log_dir, f'{epoch+1}_negLoss{args.nega_loss}_model.pth'))
         #torch.save(m_items, os.path.join(log_dir, f'{epoch}_m_items.pt')) 
     scheduler.step()
     
@@ -198,9 +208,7 @@ for epoch in range(args.epochs):
     print('----------------------------------------')
     print(f'Train loss avg: {train_loss.avg}')
     
-today = datetime.datetime.today()
-timestring = f"{today.date}-{today.hour}:{today.minute}"
-torch.save(model, os.path.join(log_dir, timestring, f'{epoch+1}_model.pth'))
+torch.save(model, os.path.join(log_dir, f'{epoch+1}_negLoss{args.nega_loss}_model.pth'))
 #torch.save(m_items, os.path.join(log_dir, f'{epoch}_m_items.pt')) 
 print('Training is finished')
 print(log_dir)
