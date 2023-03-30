@@ -10,11 +10,42 @@ Repository for 10th semester master thesis at VGIS on Aalborg University.
 Made on WSL2 installed with conda.
 
 Clone this repo into your prefered folder:
-`https://github.com/TheCanMoun10/VGIS10_GAN`
+```bash
+https://github.com/TheCanMoun10/VGIS10_GAN
+```
 
 Install the required dependencies use the environment.yml file available:
-`conda env create -f environment.yml`
+```bash
+conda env create -f environment.yml
+```
 
+## Dependencies
+* Python 3.8
+* PyTorch 2.0.0
+* Cuda 11.8
+* Numpy
+* Sklearn
+
+## Training
+* ~~The training and testing codes are based on prediction method~~
+* Now you can implemnet the codes based on both prediction and reconstruction methods.
+* The codes are basically based on the prediction method, and you can easily implement this as
+```bash
+https://github.com/TheCanMoun10/VGIS10_GAN
+cd projects/MNAD/code
+python Train.py # for training
+```
+* You can freely define parameters with your own settings like
+```bash
+python Train.py --gpus 1 --dataset_path 'your_dataset_directory' --dataset_type avenue --exp_dir 'your_log_directory'
+```
+
+## Evaluation
+* Test your own model
+* Check your dataset_type (ped2, avenue or shanghai)
+```bash
+python Evaluate_recons_wo_mem.py --t_length 2 --alpha 0.7 --th 0.015 --dataset_type avenue --model_dir ./path/to/model.pth
+```
 
 # DATASETS FOR THE GAN CAN BE FOUND HERE.
 * CUHK Avenue [dataset](https://github.com/StevenLiuWen/ano_pred_cvpr2018)
