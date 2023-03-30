@@ -27,9 +27,6 @@ conda env create -f environment.yml
 * Sklearn
 
 ## Training
-* ~~The training and testing codes are based on prediction method~~
-* Now you can implemnet the codes based on both prediction and reconstruction methods.
-* The codes are basically based on the prediction method, and you can easily implement this as
 ```bash
 https://github.com/TheCanMoun10/VGIS10_GAN
 cd AnomalyDetection

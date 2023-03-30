@@ -204,7 +204,7 @@ cv2.imshow("Side by side real image and fake image", horizontal)
 cv2.waitKey(0)
 
 today = datetime.datetime.today()
-timestring = f"{today.date}-{today.hour}:{today.minute}"
+timestring = f"{today.year}-{today.month}-{today.day}-{today.hour}:{today.minute}"
 image_dir = os.path.join('./evals', 'figures', args.dataset_type, timestring)
 if not os.path.exists(image_dir):
     os.makedirs(image_dir)
