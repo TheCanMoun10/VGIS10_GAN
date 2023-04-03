@@ -225,8 +225,8 @@ optimizerG = torch.optim.Adam(paramsG, lr = args.lr, betas=(beta1, 0.999))
 optimizerD = torch.optim.Adam(paramsD, lr=args.lr/1.5, betas=(beta1, 0.999))
 scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizerG,T_max =args.epochs)
 
-fake_label = torch.ones([fake.shape[0], fake.shape[2], fake.shape[3]], dtype=torch.float32).cuda()
-real_label = torch.zeros([args.batch_size, args.w, args.h], dtype=torch.float32).cuda()
+fake_label = 1
+real_label = 0
 
 for epoch in range(args.epochs):
     labels_list = []

@@ -75,20 +75,22 @@ parser.add_argument('--loss', type=str, default="cross", help='Define the type o
 parser.add_argument('--img_norm', type=str, default='mnad_norm', help='Define image normalization for dataloader: mnad_norm [-1, 1], dyn_norm [0, 1]')
 parser.add_argument('--wandb', action='store_true', help='Use wandb to log and visualize network training')
 parser.add_argument('--sigma_noise', type=float, default=0.5, help="Sigma value for gaussian noise added to training." )
+parser.add_argument('--training_factor', type=float, default=0.5, help="Adversarial loss training factor")
+parser.add_argument('--img_dtype', type=str, default='float32', help='Image array datatype. [np.float31] | np.uint8')
 
 # Augmentations to dataset:
-parser.add_argument("--transforms", type=str, default='none', help='Applying transforms to dataset')
+parser.add_argument("--transforms", action='store_true', help='Applying transforms to dataset')
 parser.add_argument('--flip', type=str, default='none', help='Apply horizontal flip to training data. [ true | none ].')
 parser.add_argument('--crop', type=str, default='none', help='Apply random crop on input images. [ true | none ].')
 parser.add_argument('--crop_factor', type=int, default=4, help='Factor with which to crop images. height // crop_factor.')
 parser.add_argument('--p_val', type=float, default=0.5, help='Probability with which to apply the transforms')
-parser.add_argument('--normalize', type=bool, default=True, help='Normalize tensors')
+parser.add_argument('--normalize', action='store_true', help='Normalize tensors')
 
 
 args = parser.parse_args()
 
 today = datetime.datetime.today()
-timestring = f"{today.year}{today.month}{today.day}" + "{:02d}{:02d}".format(today.hour, today.minute) #format YYYYMMDDHHMM
+timestring = f"{today.year}{today.month}{today.day}"# + "{:02d}{:02d}".format(today.hour, today.minute) #format YYYYMMDDHHMM
 if args.img_norm == "dyn_norm":
     norm = "Dynamic normalization [0, 1]"
     args.normalize = False
@@ -126,6 +128,13 @@ else:
         gpus = gpus + args.gpus[i] + ","
     os.environ["CUDA_VISIBLE_DEVICES"]= gpus[:-1]
     
+if args.img_dtype == 'uint8':
+    img_dtype = np.uint8
+    torch_dtyp = torch.uint8
+else: 
+    img_dtype = np.float32
+    torch_dtyp = torch.float32
+    
 # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 torch.backends.cudnn.enabled = True # make sure to use cudnn for computational performance
@@ -134,9 +143,11 @@ train_folder = args.dataset_path+args.dataset_type+"/training/frames"
 test_folder = args.dataset_path+args.dataset_type+"/testing/frames"
 
 transforms_list = []
-if args.transforms == 'true':
+if args.transforms:
     transforms_list.append(transforms.ToPILImage())
+    transforms_list.append(transforms.Resize((args.w // 2, args.h // 2)))
     if args.flip == 'true':
+        transforms_list.append(transforms.ToPILImage())
         transforms_list.append(transforms.RandomHorizontalFlip(args.p_val))
 
     if args.crop == 'true':
@@ -144,15 +155,16 @@ if args.transforms == 'true':
         
 transforms_list += [transforms.ToTensor()]
 
-if args.normalize == True:
+if args.normalize:
     transforms_list +=[transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
-
+    
+print(transforms_list)
 # Loading dataset
-train_dataset = DataLoader(train_folder, transforms.Compose(transforms_list), resize_height=args.h, resize_width=args.w, time_step=args.t_length-1,num_pred = 0, img_norm=args.img_norm)
+train_dataset = DataLoader(train_folder, transforms.Compose(transforms_list), resize_height=args.h, resize_width=args.w, time_step=args.t_length-1,num_pred = 0, img_norm=args.img_norm, dtype=img_dtype)
 
 test_dataset = DataLoader(test_folder, transforms.Compose([
              transforms.ToTensor(),            
-             ]), resize_height=args.h, resize_width=args.w, time_step=args.t_length-1,num_pred = 0, img_norm=args.img_norm)
+             ]), resize_height=args.h, resize_width=args.w, time_step=args.t_length-1,num_pred = 0, img_norm=args.img_norm, dtype=img_dtype)
 
 train_size = len(train_dataset)
 test_size = len(test_dataset)
@@ -165,18 +177,24 @@ test_batch = data.DataLoader(test_dataset, batch_size = args.test_batch_size,
 
 # Model setting
 beta1 = 0.5
-if args.loss == "L1":
-    loss_func = nn.L1Loss(reduction='none') #L1 loss
-elif args.loss == "L2" or args.loss == 'MSE':
-    loss_func = nn.MSELoss(reduction='none') #L2 loss
-elif args.loss == 'BCE':
-    loss_func =  nn.BCELoss(reduction='none')
-else:
-    loss_func = nn.CrossEntropyLoss(reduction='none')
+
+def loss_function(tensor, comptensor, loss_func):
+    if loss_func == "L1":
+        loss = F.l1_loss(tensor, comptensor, reduction='none') #L1 loss
+    elif loss_func == "L2" or loss_func =='MSE':
+        loss = F.mse_loss(tensor, comptensor, reduction='none') #L2 loss
+    elif loss_func == 'CE':
+        loss =  F.cross_entropy(tensor, comptensor, reduction='none')
+    else:
+        loss = F.binary_cross_entropy(tensor, comptensor, reduction='none')
+    
+    return loss
 
 # Setup generator and discriminator:
 netG = convAE(args.c, args.t_length, args.msize, args.fdim, args.mdim)
 netD = OpenGAN_Discriminator(ngpu=1, nc=args.c, ndf=args.fdim)
+# print(netG)
+# print(netD)
 # netG = Generator(args.c)
 # netD = Discriminator(args.c)
 
@@ -225,8 +243,8 @@ optimizerG = torch.optim.Adam(paramsG, lr = args.lr, betas=(beta1, 0.999))
 optimizerD = torch.optim.Adam(paramsD, lr=args.lr/1.5, betas=(beta1, 0.999))
 scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizerG,T_max =args.epochs)
 
-fake_label = torch.ones([fake.shape[0], fake.shape[2], fake.shape[3]], dtype=torch.float32).cuda()
-real_label = torch.zeros([args.batch_size, args.w, args.h], dtype=torch.float32).cuda()
+fake_label = torch.ones([args.batch_size, args.h, args.w], dtype=torch_dtyp).cuda()
+real_label = torch.zeros([args.batch_size, args.h, args.w], dtype=torch_dtyp).cuda()
 
 for epoch in range(args.epochs):
     labels_list = []
@@ -250,6 +268,9 @@ for epoch in range(args.epochs):
         # Generator inference:
         g_output_1 = netG(imgs)
         g_output = netG(input_w_noise)
+        if j == 0:
+            print(f"Noisy generator output: {g_output.shape}")
+            print(f'Image tensor: {imgs.shape}')
         
         vutils.save_image(imgs[0], os.path.join(log_dir, '%03d_real_sample_epoch.png' % (epoch)), normalize=True)
         vutils.save_image(g_output_1[0], os.path.join(log_dir, '%03d_fake_sample_epoch.png' % (epoch)), normalize=True)
@@ -257,13 +278,17 @@ for epoch in range(args.epochs):
 
         ##### TRAINING DISCRIMINATOR #####
         d_fake_output = netD(g_output)
-        print('d_fake_output tensor shape: {0}'.format(d_fake_output.shape))
-        print('fake_label tensor shape: {0}'.format(fake_label.shape))
+        # print('d_fake_output tensor shape: {0}'.format(d_fake_output.shape))
+        # print('fake_label tensor shape: {0}'.format(fake_label.shape))
         d_real_output = netD(imgs)
-        print('d_real_output tensor shape: {0}'.format(d_real_output.shape))
-        print('real_label tensor shape: {0}'.format(real_label.shape))
-        d_fake_loss = loss_func(torch.squeeze(d_fake_output), torch.squeeze(fake_label))
-        d_real_loss = loss_func(torch.squeeze(d_real_output), torch.squeeze(real_label))
+        # print('d_real_output tensor shape: {0}'.format(d_real_output.shape))
+        # print('real_label tensor shape: {0}'.format(real_label.shape))
+        d_fake_loss = loss_function(torch.squeeze(d_fake_output), fake_label, args.loss)
+        print('d_fake_loss tensor shape: {0}'.format(d_fake_loss.shape))
+        # print(d_fake_loss.dtype)
+        d_real_loss = loss_function(torch.squeeze(d_real_output), torch.squeeze(real_label), args.loss)
+        print('d_real_loss tensor shape: {0}'.format(d_real_loss.shape))
+        # print(d_real_loss.dtype)
         d_sum_loss = 0.5 * (d_fake_loss + d_real_loss)
         
         output_D_real = d_real_output.detach().view(-1)
@@ -280,7 +305,7 @@ for epoch in range(args.epochs):
         ##### TRAINING GENERATOR #####:
         netG.zero_grad()
         g_recon_loss = F.mse_loss(g_output, imgs)
-        g_adversarial_loss = loss_func(d_fake_output, real_label)
+        g_adversarial_loss = loss_function(d_fake_output, real_label, args.loss)
         g_sum_loss = (1-args.training_factor)*g_recon_loss + args.training_factor*g_adversarial_loss
         if args.nega_loss:
             g_sum_loss = -args.nega_value*g_sum_loss

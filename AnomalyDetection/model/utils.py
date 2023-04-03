@@ -8,7 +8,7 @@ import torch
 from PIL import Image
 rng = np.random.RandomState(2020)
 
-def np_load_frame(filename, resize_height, resize_width, img_norm):
+def np_load_frame(filename, resize_height, resize_width, img_norm, dtype=np.float32):
     """
     Load image path and convert it to numpy.ndarray. Notes that the color channels are BGR and the color space
     is normalized from [0, 255] to [0, 1].
@@ -20,7 +20,7 @@ def np_load_frame(filename, resize_height, resize_width, img_norm):
     """
     image_decoded = cv2.imread(filename)
     image_resized = cv2.resize(image_decoded, (resize_width, resize_height))
-    image_resized = image_resized.astype(dtype=np.float32)
+    image_resized = image_resized.astype(dtype=dtype)
     if img_norm == "dyn_norm":
         image_resized = (image_resized - image_resized.min())/(image_resized.max()-image_resized.min())
     else:
@@ -29,7 +29,7 @@ def np_load_frame(filename, resize_height, resize_width, img_norm):
 
 
 class DataLoader(data.Dataset):
-    def __init__(self, video_folder, transform, resize_height, resize_width, time_step=4, num_pred=1, img_norm="old_norm"):
+    def __init__(self, video_folder, transform, resize_height, resize_width, time_step=4, num_pred=1, img_norm="old_norm", dtype=np.float32):
         self.dir = video_folder
         self.transform = transform
         self.videos = OrderedDict()
@@ -40,7 +40,7 @@ class DataLoader(data.Dataset):
         self.setup()
         self.samples = self.get_all_samples()
         self.img_norm = img_norm
-        
+        self.dtype = dtype
         
     def setup(self):
         videos = glob.glob(os.path.join(self.dir, '*'))
@@ -70,7 +70,7 @@ class DataLoader(data.Dataset):
         
         batch = []
         for i in range(self._time_step+self._num_pred):
-            image = np_load_frame(self.videos[video_name]['frame'][frame_name+i], self._resize_height, self._resize_width, self.img_norm)
+            image = np_load_frame(self.videos[video_name]['frame'][frame_name+i], self._resize_height, self._resize_width, self.img_norm, self.dtype)
             if self.transform is not None:
                 batch.append(self.transform(image))
 
