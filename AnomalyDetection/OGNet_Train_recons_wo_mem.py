@@ -195,9 +195,6 @@ netG = convAE(args.c, args.t_length, args.msize, args.fdim, args.mdim)
 netD = OpenGAN_Discriminator(ngpu=1, nc=args.c, ndf=args.fdim)
 # print(netG)
 # print(netD)
-# netG = Generator(args.c)
-# netD = Discriminator(args.c)
-
 
 params_encoder =  list(netG.encoder.parameters()) 
 params_decoder = list(netG.decoder.parameters())

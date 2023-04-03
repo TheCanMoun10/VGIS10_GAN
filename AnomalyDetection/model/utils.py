@@ -11,7 +11,7 @@ rng = np.random.RandomState(2020)
 def np_load_frame(filename, resize_height, resize_width, img_norm, dtype=np.float32):
     """
     Load image path and convert it to numpy.ndarray. Notes that the color channels are BGR and the color space
-    is normalized from [0, 255] to [0, 1].
+    is normalized from [0, 255] to [-1, 1] or [0, 1].
 
     :param filename: the full path of image
     :param resize_height: resized height
