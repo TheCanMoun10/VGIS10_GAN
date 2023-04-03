@@ -148,9 +148,3 @@ class convAE(torch.nn.Module):
             output = self.decoder(updated_fea)
             
             return output, fea, updated_fea, keys, softmax_score_query, softmax_score_memory, gathering_loss
-        
-                                          
-
-
-
-    

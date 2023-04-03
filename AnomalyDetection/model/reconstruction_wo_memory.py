@@ -12,20 +12,20 @@ class Encoder(torch.nn.Module):
         
         def Basic(intInput, intOutput):
             return torch.nn.Sequential(
-                torch.nn.Conv2d(in_channels=intInput, out_channels=intOutput, kernel_size=3, stride=1, padding=1),
+                torch.nn.Conv2d(in_channels=intInput, out_channels=intOutput, kernel_size=3, stride=1),
                 torch.nn.BatchNorm2d(intOutput),
                 torch.nn.ReLU(inplace=False),
-                torch.nn.Conv2d(in_channels=intOutput, out_channels=intOutput, kernel_size=3, stride=1, padding=1),
+                torch.nn.Conv2d(in_channels=intOutput, out_channels=intOutput, kernel_size=3, stride=1),
                 torch.nn.BatchNorm2d(intOutput),
                 torch.nn.ReLU(inplace=False)
             )
         
         def Basic_(intInput, intOutput):
             return torch.nn.Sequential(
-                torch.nn.Conv2d(in_channels=intInput, out_channels=intOutput, kernel_size=3, stride=1, padding=1),
+                torch.nn.Conv2d(in_channels=intInput, out_channels=intOutput, kernel_size=3, stride=1),
                 torch.nn.BatchNorm2d(intOutput),
                 torch.nn.ReLU(inplace=False),
-                torch.nn.Conv2d(in_channels=intOutput, out_channels=intOutput, kernel_size=3, stride=1, padding=1),
+                torch.nn.Conv2d(in_channels=intOutput, out_channels=intOutput, kernel_size=3, stride=1),
             )
         
         self.moduleConv1 = Basic(n_channel*(t_length-1), 64)
@@ -87,7 +87,7 @@ class Decoder(torch.nn.Module):
         
         def Upsample(nc, intOutput):
             return torch.nn.Sequential(
-                torch.nn.ConvTranspose2d(in_channels = nc, out_channels=intOutput, kernel_size = 3, stride = 2, padding = 1, output_padding = 1),
+                torch.nn.ConvTranspose2d(in_channels = nc, out_channels=intOutput, kernel_size = 3, stride = 2, padding=1),
                 torch.nn.BatchNorm2d(intOutput),
                 torch.nn.ReLU(inplace=False)
             )
@@ -148,7 +148,105 @@ class convAE(torch.nn.Module):
             output = self.decoder(fea)
             
             return output #, fea, updated_fea, keys, softmax_score_query, softmax_score_memory, query, top1_keys, keys_ind, compactness_loss
+
+# OpenGAN discriminator:
+class OpenGAN_Discriminator(nn.Module):
+    def __init__(self, ngpu=1, nc=3, ndf=512):
+        super(OpenGAN_Discriminator, self).__init__()
+        self.ngpu = ngpu
+        self.nc = nc
+        self.ndf = ndf
+        self.main = nn.Sequential(
+            nn.Conv2d(self.nc, self.ndf*8, 1, 1,0, bias=False),
+            nn.LeakyReLU(0.2, inplace=True),
+            
+            nn.Conv2d(self.ndf*8, self.ndf*4, 1, 1, 0, bias=False),
+            # nn.BatchNorm2d(self.ndf*4),
+            nn.LeakyReLU(0.2, inplace=True),
+            
+            nn.Conv2d(self.ndf*4, self.ndf*2, 1, 1, 0, bias=False),
+            # nn.BatchNorm2d(self.ndf*2),
+            nn.LeakyReLU(0.2, inplace=True),
+            
+            nn.Conv2d(self.ndf*2, self.ndf, 1, 1, 0, bias=False),
+            # nn.BatchNorm2d(self.ndf),
+            nn.LeakyReLU(0.2, inplace=True),
+            
+            nn.Conv2d(self.ndf, 1, 1, 1, 0, bias=False),
+            nn.Sigmoid()  
+        )
         
+    def forward(self, input):
+        return self.main(input)
+    
+#OGNet Generator:
+class Generator(nn.Module):
+    def __init__(self, nc=3):
+        super(Generator, self).__init__()
+        self.nc = nc
+        self.encoder = nn.Sequential(
+            nn.Conv2d(self.nc, 64, 5, stride=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(True),
+            nn.Conv2d(64, 128, 5, stride=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(True),
+            nn.Conv2d(128, 256, 5, stride=1),
+            nn.ReLU(True),
+            nn.BatchNorm2d(256),
+            nn.Conv2d(256, 512, 5, stride=1),
+            nn.ReLU(True),
+            nn.BatchNorm2d(512),
+        )
+        self.decoder = nn.Sequential(
+
+            nn.ConvTranspose2d(512, 256, 5, stride=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(256, 128, 5, stride=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(128, 64, 5, stride=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(64, self.nc, 5, stride=1),
+            nn.Tanh()
+        )
+        
+    def forward(self, input):
+        return self.decoder(self.encoder(input))
+
+#OGNet Discriminator:
+class Flatten(nn.Module):
+    def forward(self, input):
+        return input.view(input.size(0), -1)
+
+class Discriminator(nn.Module):
+    def __init__(self, nc=3):
+        super(Discriminator, self).__init__()
+        self.nc = nc
+        self.main = nn.Sequential(
+            nn.Conv2d(self.nc, 64, 5, stride=2, padding=2),
+            nn.BatchNorm2d(64),
+            nn.ReLU(True),
+            nn.Conv2d(64, 128, 5, stride=2, padding=2),
+            nn.BatchNorm2d(128),
+            nn.ReLU(True),
+            nn.Conv2d(128, 256, 5, stride=2, padding=2),
+            nn.BatchNorm2d(256),
+            nn.ReLU(True),
+            nn.Conv2d(256, 512, 5, stride=2, padding=2),
+            nn.ReLU(True),
+            Flatten(),
+            nn.Linear(4608, 1),
+            nn.Sigmoid() 
+        )
+        
+    def forward(self, input):
+        return self.main(input)
+    
+
+
                                           
 
 
