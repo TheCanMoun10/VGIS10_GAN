@@ -34,7 +34,16 @@ python Train_recons_wo_mem.py # for training
 ```
 * You can freely define parameters with your own settings like
 ```bash
-python Train_recons_wo_mem.py --gpus 1 --dataset_path 'your_dataset_directory' --dataset_type avenue --exp_dir 'your_log_directory'
+python OGNet_Train_recons_wo_mem.py --gpus 1 --dataset_path ./path/to/datasets/folder' --dataset_type avenue --exp_dir ./path/to/experiments/folder
+```
+For example:
+```bash
+python OGNet_Train_recons_wo_mem.py --lr 0.000001 --epochs 5 --batch_size 5 --t_length 2 --dataset_type avenue --h 64 --w 64
+```
+
+To log training in wandb use:
+```bash
+python OGNet_Train_recons_wo_mem.py --lr 0.000001 --epochs 5 --batch_size 5 --t_length 2 --dataset_type avenue --h 64 --w 64 --wandb
 ```
 
 ## Evaluation
