@@ -168,9 +168,9 @@ class convAE(torch.nn.Module):
 class OpenGAN_Discriminator(nn.Module):
     def __init__(self, ngpu=1, nc=3, ndf=512):
         super(OpenGAN_Discriminator, self).__init__()
-        self.ngpu = ngpu
-        self.nc = nc
-        self.ndf = ndf
+        self.ngpu = ngpu # Number of GPUs.
+        self.nc = nc # Number og channels.
+        self.ndf = ndf # Discriminator feature diimension.
         
         self.conv1 = nn.Conv2d(self.nc, self.ndf*8, 1, 1, 0, bias=False)
         self.relu1 = nn.LeakyReLU(0.2, inplace=True)
@@ -188,27 +188,7 @@ class OpenGAN_Discriminator(nn.Module):
         self.relu4 = nn.LeakyReLU(0.2, inplace=True)
         
         self.conv5 = nn.Conv2d(self.ndf, 1, 1, 1, 0, bias=False)
-        self.sigmoid = nn.Sigmoid()  
-        
-        # self.main = nn.Sequential(
-        #     nn.Conv2d(self.nc, self.ndf*8, 1, 1,0, bias=False),
-        #     nn.LeakyReLU(0.2, inplace=True),
-            
-        #     nn.Conv2d(self.ndf*8, self.ndf*4, 1, 1, 0, bias=False),
-        #     # nn.BatchNorm2d(self.ndf*4),
-        #     nn.LeakyReLU(0.2, inplace=True),
-            
-        #     nn.Conv2d(self.ndf*4, self.ndf*2, 1, 1, 0, bias=False),
-        #     # nn.BatchNorm2d(self.ndf*2),
-        #     nn.LeakyReLU(0.2, inplace=True),
-            
-        #     nn.Conv2d(self.ndf*2, self.ndf, 1, 1, 0, bias=False),
-        #     # nn.BatchNorm2d(self.ndf),
-        #     nn.LeakyReLU(0.2, inplace=True),
-            
-        #     nn.Conv2d(self.ndf, 1, 1, 1, 0, bias=False),
-        #     nn.Sigmoid()  
-        # )
+        self.sigmoid = nn.Sigmoid()
         
     def forward(self, input):
         x = self.conv1(input)
