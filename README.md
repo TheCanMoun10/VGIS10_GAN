@@ -34,7 +34,7 @@ python Train_recons_wo_mem.py # for training
 ```
 * You can freely define parameters with your own settings like
 ```bash
-python OGNet_Train_recons_wo_mem.py --gpus 1 --dataset_path ./path/to/datasets/folder' --dataset_type avenue --exp_dir ./path/to/experiments/folder
+python OGNet_Train_recons_wo_mem.py --gpus 1 --dataset_path ./path/to/datasets/folder --dataset_type avenue --exp_dir ./path/to/experiments/folder
 ```
 For example:
 ```bash
