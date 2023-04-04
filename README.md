@@ -38,19 +38,19 @@ python AnomalyDetection/OGNet_Train_recons_wo_mem.py --gpus 1 --dataset_path ./p
 ```
 For example:
 ```bash
-python AnomalyDetection/OGNet_Train_recons_wo_mem.py --lr 0.000001 --epochs 5 --batch_size 5 --t_length 2 --dataset_type avenue --h 64 --w 64
+python OGNet_Train_recons_wo_mem.py --lr 0.000001 --epochs 5 --batch_size 5 --t_length 2 --dataset_type avenue --h 64 --w 64
 ```
 
 To log training in wandb use:
 ```bash
-python AnomalyDetection/OGNet_Train_recons_wo_mem.py --lr 0.000001 --epochs 5 --batch_size 5 --t_length 2 --dataset_type avenue --h 64 --w 64 --wandb
+python OGNet_Train_recons_wo_mem.py --lr 0.000001 --epochs 5 --batch_size 5 --t_length 2 --dataset_type avenue --h 64 --w 64 --wandb
 ```
 
 ## Evaluation
 * Test your own model
 * Check your dataset_type (ped2, avenue or shanghai)
 ```bash
-python AnomalyDetection/Evaluate_recons_wo_mem.py --t_length 2 --alpha 0.7 --th 0.015 --dataset_type avenue --model_dir ./path/to/model.pth
+python Evaluate_recons_wo_mem.py --t_length 2 --alpha 0.7 --th 0.015 --dataset_type avenue --model_dir ./path/to/model.pth
 ```
 
 ## Datasets.
