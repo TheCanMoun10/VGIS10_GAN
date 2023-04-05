@@ -191,8 +191,10 @@ def loss_function(tensor, comptensor, loss_func):
     return loss
 
 # Setup generator and discriminator:
-netG = convAE(args.c, args.t_length, args.msize, args.fdim, args.mdim)
-netD = OpenGAN_Discriminator(ngpu=1, nc=args.c, ndf=args.fdim)
+# netG = convAE(args.c, args.t_length, args.msize, args.fdim, args.mdim)
+# netD = OpenGAN_Discriminator(ngpu=1, nc=args.c, ndf=args.fdim)
+netG =g_net(args.c)
+netD =d_net(args.c)
 # print(netG)
 # print(netD)
 
@@ -266,6 +268,7 @@ for epoch in range(args.epochs):
         g_output_1 = netG(imgs)
         g_output = netG(input_w_noise)
         if j == 0:
+            print(f'Noisy input tensor: {input_w_noise.shape}')
             print(f"Noisy generator output: {g_output.shape}")
             print(f'Image tensor: {imgs.shape}')
         
@@ -275,16 +278,16 @@ for epoch in range(args.epochs):
 
         ##### TRAINING DISCRIMINATOR #####
         d_fake_output = netD(g_output)
-        # print('d_fake_output tensor shape: {0}'.format(d_fake_output.shape))
+        print('d_fake_output tensor shape: {0}'.format(d_fake_output.shape))
         # print('fake_label tensor shape: {0}'.format(fake_label.shape))
         d_real_output = netD(imgs)
-        # print('d_real_output tensor shape: {0}'.format(d_real_output.shape))
+        print('d_real_output tensor shape: {0}'.format(d_real_output.shape))
         # print('real_label tensor shape: {0}'.format(real_label.shape))
         d_fake_loss = loss_function(torch.squeeze(d_fake_output), fake_label, args.loss)
-        print('d_fake_loss tensor shape: {0}'.format(d_fake_loss.shape))
+        # print('d_fake_loss tensor shape: {0}'.format(d_fake_loss.shape))
         # print(d_fake_loss.dtype)
         d_real_loss = loss_function(torch.squeeze(d_real_output), torch.squeeze(real_label), args.loss)
-        print('d_real_loss tensor shape: {0}'.format(d_real_loss.shape))
+        # print('d_real_loss tensor shape: {0}'.format(d_real_loss.shape))
         # print(d_real_loss.dtype)
         d_sum_loss = 0.5 * (d_fake_loss + d_real_loss)
         

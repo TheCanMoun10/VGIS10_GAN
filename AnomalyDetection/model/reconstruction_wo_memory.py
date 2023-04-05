@@ -22,20 +22,20 @@ class Encoder(torch.nn.Module):
         
         def Basic_(intInput, intOutput):
             return torch.nn.Sequential(
-                torch.nn.Conv2d(in_channels=intInput, out_channels=intOutput, kernel_size=2, stride=1),
+                torch.nn.Conv2d(in_channels=intInput, out_channels=intOutput, kernel_size=2, stride=1), 
                 torch.nn.BatchNorm2d(intOutput),
                 torch.nn.ReLU(inplace=False),
                 torch.nn.Conv2d(in_channels=intOutput, out_channels=intOutput, kernel_size=2, stride=1),
             )
         
         self.moduleConv1 = Basic(n_channel*(t_length-1), 64)
-        self.modulePool1 = torch.nn.MaxPool2d(kernel_size=2, stride=2)
+        self.modulePool1 = torch.nn.MaxPool2d(kernel_size=3, stride=3)
 
         self.moduleConv2 = Basic(64, 128)
-        self.modulePool2 = torch.nn.MaxPool2d(kernel_size=2, stride=2)
+        self.modulePool2 = torch.nn.MaxPool2d(kernel_size=1, stride=2)
         
         self.moduleConv3 = Basic(128, 256)
-        self.modulePool3 = torch.nn.MaxPool2d(kernel_size=2, stride=2)
+        # self.modulePool3 = torch.nn.MaxPool2d(kernel_size=2, stride=2)
 
         self.moduleConv4 = Basic_(256, 512)
         self.moduleBatchNorm = torch.nn.BatchNorm2d(512)
@@ -51,11 +51,11 @@ class Encoder(torch.nn.Module):
         tensorPool2 = self.modulePool2(tensorConv2)
 
         tensorConv3 = self.moduleConv3(tensorPool2)
-        tensorPool3 = self.modulePool3(tensorConv3)
+        # tensorPool3 = self.modulePool3(tensorConv3)
         # print(f'Generator Pool layer 3: {tensorPool3.shape} \n')
 
-        tensorConv4 = self.moduleConv4(tensorPool3)
-        print(f'Generator output: {tensorConv4.shape} \n')
+        tensorConv4 = self.moduleConv4(tensorConv3)
+        # print(f'Generator output: {tensorConv4.shape} \n')
                 
         return tensorConv4, tensorConv1, tensorConv2, tensorConv3
 
@@ -81,9 +81,9 @@ class Decoder(torch.nn.Module):
                 torch.nn.Conv2d(in_channels=intInput, out_channels=nc, kernel_size=1, stride=1, padding=1),
                 torch.nn.BatchNorm2d(nc),
                 torch.nn.ReLU(inplace=False),
-                torch.nn.Conv2d(in_channels=nc, out_channels=nc, kernel_size=1, stride=1, padding=1),
-                torch.nn.BatchNorm2d(nc),
-                torch.nn.ReLU(inplace=False),
+                # torch.nn.Conv2d(in_channels=nc, out_channels=nc, kernel_size=1, stride=1, padding=1),
+                # torch.nn.BatchNorm2d(nc),
+                # torch.nn.ReLU(inplace=False),
                 torch.nn.Conv2d(in_channels=nc, out_channels=intOutput, kernel_size=1, stride=1, padding=1),
                 torch.nn.Tanh()
             )
@@ -107,7 +107,7 @@ class Decoder(torch.nn.Module):
         # self.moduleDeconv4 = Basic(64, 64)
         # self.moduleUpsample1 = Upsample(64, 32)
         
-        self.moduleDeconv1 = Gen(64,n_channel*(t_length-1),n_channel)
+        self.moduleDeconv1 = Gen(64,n_channel,64)
         
         
         
@@ -140,7 +140,7 @@ class Decoder(torch.nn.Module):
 
 
 class convAE(torch.nn.Module):
-    def __init__(self, n_channel =3,  t_length = 5, memory_size = 10, feature_dim = 512, key_dim = 512, temp_update = 0.1, temp_gather=0.1):
+    def __init__(self, n_channel = 3,  t_length = 5, memory_size = 10, feature_dim = 512, key_dim = 512, temp_update = 0.1, temp_gather=0.1):
         super(convAE, self).__init__()
 
         self.encoder = Encoder(t_length, n_channel)
@@ -172,26 +172,35 @@ class OpenGAN_Discriminator(nn.Module):
         self.nc = nc # Number og channels.
         self.ndf = ndf # Discriminator feature diimension.
         
-        self.conv1 = nn.Conv2d(self.nc, self.ndf*8, 1, 1, 0, bias=False)
+        # self.conv1 = nn.Conv2d(self.nc, self.ndf*4, 1, 1, 0, bias=False)
+        # # self.batchnorm1 = nn.BatchNorm2d(self.ndf)
+        # self.relu1 = nn.LeakyReLU(0.2, inplace=True)
+        
+        # self.conv2 = nn.Conv2d(self.ndf, 1, 1, 1, 0, bias=False)
+        # self.batchnorm2 = nn.BatchNorm2d(self.ndf)
+        
+        self.conv1 = nn.Conv2d(self.nc, self.ndf*2, 1, 1, 0, bias=False)
+        self.batchnorm1 = nn.BatchNorm2d(self.ndf*2)
         self.relu1 = nn.LeakyReLU(0.2, inplace=True)
         
-        self.conv2 = nn.Conv2d(self.ndf*8, self.ndf*4, 1, 1, 0, bias=False)
-        self.batchnorm2 = nn.BatchNorm2d(self.ndf*4)
+        self.conv2 = nn.Conv2d(self.ndf*2, self.ndf, 1, 1, 0, bias=False)
+        self.batchnorm2 = nn.BatchNorm2d(self.ndf)
         self.relu2 = nn.LeakyReLU(0.2, inplace=True)
         
-        self.conv3 = nn.Conv2d(self.ndf*4, self.ndf*2, 1, 1, 0, bias=False)
-        self.batchnorm3 = nn.BatchNorm2d(self.ndf*2)
-        self.relu3 = nn.LeakyReLU(0.2, inplace=True)
+        self.conv3 = nn.Conv2d(self.ndf, 1, 1, 1, 0, bias=False)
+        # self.batchnorm3 = nn.BatchNorm2d(self.ndf)
+        # self.relu3 = nn.LeakyReLU(0.2, inplace=True)
         
-        self.conv4 = nn.Conv2d(self.ndf*2, self.ndf, 1, 1, 0, bias=False)
-        self.batchnorm4 = nn.BatchNorm2d(self.ndf)
-        self.relu4 = nn.LeakyReLU(0.2, inplace=True)
+        # self.conv4 = nn.Conv2d(self.ndf*2, self.ndf, 1, 1, 0, bias=False)
+        # self.batchnorm4 = nn.BatchNorm2d(self.ndf)
+        # self.relu4 = nn.LeakyReLU(0.2, inplace=True)
         
-        self.conv5 = nn.Conv2d(self.ndf, 1, 1, 1, 0, bias=False)
+        # self.conv5 = nn.Conv2d(self.ndf, 1, 1, 1, 0, bias=False)
         self.sigmoid = nn.Sigmoid()
         
     def forward(self, input):
         x = self.conv1(input)
+        x = self.batchnorm1(x)
         x = self.relu1(x)
         
         x = self.conv2(x)
@@ -199,15 +208,85 @@ class OpenGAN_Discriminator(nn.Module):
         x = self.relu2(x)
         
         x = self.conv3(x)
-        x = self.batchnorm3(x)
-        x = self.relu3(x)
+        # x = self.batchnorm3(x)
+        # x = self.relu3(x)
         
-        x = self.conv4(x)
-        x = self.batchnorm4(x)
-        x = self.relu4(x)
+        # x = self.conv4(x)
+        # x = self.batchnorm4(x)
+        # x = self.relu4(x)
         
-        x = self.conv5(x)
+        # x = self.conv5(x)
         x = self.sigmoid(x)
         
         print(f'Discriminator output: {x.shape}')
+        return x
+    
+    
+class g_net(nn.Module):
+    def __init__(self, nc=3):
+        super(g_net, self).__init__()
+        self.nc = nc
+        self.encoder = nn.Sequential(
+
+            nn.Conv2d(self.nc, 64, 5, stride=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(True),
+            nn.Conv2d(64, 128, 5, stride=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(True),
+            nn.Conv2d(128, 256, 5, stride=1),
+            nn.ReLU(True),
+            nn.BatchNorm2d(256),
+            nn.Conv2d(256, 512, 5, stride=1),
+            nn.ReLU(True),
+            nn.BatchNorm2d(512),
+        )
+        self.decoder = nn.Sequential(
+
+            nn.ConvTranspose2d(512, 256, 5, stride=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(256, 128, 5, stride=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(128, 64, 5, stride=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(64, 1, 5, stride=1),
+            nn.Tanh()
+        )
+
+    def forward(self, x):
+        x = self.encoder(x)
+        x = self.decoder(x)
+        return x
+
+class Flatten(nn.Module):
+    def forward(self, input):
+        return input.view(input.size(0), -1)
+
+class d_net(nn.Module):
+    def __init__(self, nc=3):
+        super(d_net, self).__init__()
+        self.nc = nc
+        self.discriminator = nn.Sequential(
+
+            nn.Conv2d(self.nc, 64, 5, stride=2, padding=2),
+            nn.BatchNorm2d(64),
+            nn.ReLU(True),
+            nn.Conv2d(64, 128, 5, stride=2, padding=2),
+            nn.BatchNorm2d(128),
+            nn.ReLU(True),
+            nn.Conv2d(128, 256, 5, stride=2, padding=2),
+            nn.BatchNorm2d(256),
+            nn.ReLU(True),
+            nn.Conv2d(256, 512, 5, stride=2, padding=2),
+            nn.ReLU(True),
+            Flatten(),
+            nn.Linear(4608, 1),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        x = self.discriminator(x)
         return x
