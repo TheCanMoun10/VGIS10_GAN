@@ -235,7 +235,7 @@ class OGNet(nn.Module):
             g_output = self.g(input)
             d_fake_output = self.d(g_output)
             
-            if count%150 == 0 and test_opts.wandb:
+            if count%250 == 0 and test_opts.wandb:
                 pixels_gen = g_output[0].detach().cpu().permute(1,2,0).numpy()
                 # pixels_d_fake = d_fake_output[0].detach().cpu().permute(1,2,0).numpy()
                 pixels_input = input[0].detach().cpu().permute(1,2,0).numpy()
