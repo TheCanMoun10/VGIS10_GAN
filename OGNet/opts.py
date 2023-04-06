@@ -6,7 +6,7 @@ import argparse
 def parse_opts():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_path', default='./data/train', type=str, help='Input file path')
-    parser.add_argument('--nc', default=1, type=int, help='Number of channels in input image')
+    parser.add_argument('--nc', default=3, type=int, help='Number of channels in input image')
     parser.add_argument('--normal_class', default='0', type=str, help='normal_class_folder_name')
     parser.add_argument('--g_learning_rate', default='0.001', type=float, help='g_learning_rate')
     parser.add_argument('--d_learning_rate', default='0.0001', type=float, help='d_learning_rate')

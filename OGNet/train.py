@@ -2,6 +2,7 @@
 from model import OGNet
 from opts import parse_opts
 from dataloader import load_data_train
+from opts_fine_tune_discriminator import parse_opts_ft
 
 # Code for the CVPR 2020 paper ->  Old is Gold: Redefining the Adversarially Learned One-Class Classifier Training Paradigm
 # https://arxiv.org/abs/2004.07657
@@ -19,6 +20,7 @@ from dataloader import load_data_train
 if __name__=="__main__":
 
     opt = parse_opts()
+    opts_ft = parse_opts_ft()
     train_loader = load_data_train(opt)
     model = OGNet(opt, train_loader)
     model.cuda()
