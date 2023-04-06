@@ -1,0 +1,7 @@
+For training images:
+./data/train/'normal_class_name'/'sub_directory'/*.png
+
+
+For testing images:
+Class 0:  ./data/test/0/*.png
+Class 1:  ./data/test/1/*.png

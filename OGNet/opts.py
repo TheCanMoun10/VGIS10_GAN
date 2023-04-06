@@ -22,5 +22,7 @@ def parse_opts():
     parser.add_argument('--frame_size', default=45, type=int, help='one side size of the square patch to be extracted from each frame')
     parser.add_argument('--final_d_path', default='./models/netD', type=str, help='final d model save path')
     parser.add_argument('--final_g_path', default='./models/netG', type=str, help='final g model save path')
+    parser.add_argument('--wandb', action='store_true', help='Use wandb to log and visualize network training')
+    
     args = parser.parse_args()
     return args

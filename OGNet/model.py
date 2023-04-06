@@ -12,12 +12,13 @@ from utils import gaussian
 from dataloader import load_data
 from sklearn import metrics
 import os
+import wandb
 
 def check_auc(g_model_path, d_model_path, i):
     opt_auc = parse_opts()
     opt_auc.batch_shuffle = False
     opt_auc.drop_last = False
-    opt_auc.data_path = './data/avenue/gray/test'
+    opt_auc.data_path = './data/avenue/test'
     dataloader = load_data(opt_auc)
     model = OGNet(opt_auc, dataloader)
     model.cuda()
@@ -32,8 +33,10 @@ def check_auc(g_model_path, d_model_path, i):
     d_f1[d_f1 >= eer_threshold1] = 1
     d_f1[d_f1 < eer_threshold1] = 0
     f1_score = metrics.f1_score(labels, d_f1, pos_label=0)
-    print("AUC: {0}, EER: {1}, EER_thr: {2}, F1_score: {3}".format(metrics.auc(fpr1,tpr1), EER1,
+    AUC = metrics.auc(fpr1, tpr1)
+    print("AUC: {0}, EER: {1}, EER_thr: {2}, F1_score: {3}".format(AUC, EER1,
                                                                   eer_threshold1,f1_score))
+    return AUC, f1_score
 
 class OGNet(nn.Module):
     @staticmethod
@@ -56,8 +59,39 @@ class OGNet(nn.Module):
         self.image_grids_numbers = opt.image_grids_numbers
         self.filename = ''
         self.n_row_in_grid = opt.n_row_in_grid
+        self.wandb = opt.wandb
 
     def train(self, normal_class):
+        
+        if self.wandb:    
+            wandb.init(project="VGIS10_OGNet",
+            
+            config={
+                "g_learning_rate": self.g_learning_rate,
+                "d_learning_rate" : self.d_learning_rate,
+                "Sigma noise" : self.sigma_noise,
+                "number of image channels" : self.c,
+                "dataset": 'avenue',
+                "epochs" : self.epoch,
+                "batch size" : self.batch_size,
+                },
+                name=f'{self.epoch}_{self.batch_size}_glr{self.g_learning_rate}_dlr{self.d_learning_rate}'
+            )
+            
+        G_losses = []
+        G_recon_losses = []
+        G_adv_losses = []
+        D_losses = []
+        AUC_phase1 = []
+        EER_phase1 = []
+        EER_thres_phase1 = []
+        F1_score_phase1 = []
+        
+        AUC_phase2 = []
+        EER_phase2 = []
+        EER_thres_phase2 = []
+        F1_score_phase2 = []
+        
         self.g.train()
         self.d.train()
 
@@ -108,11 +142,28 @@ class OGNet(nn.Module):
                 d_optim.step()
                 g_optim.step()
                 
+                if self.wandb:
+                    wandb.log({'Loss_G' : g_sum_loss, 'Recon_G_loss': g_recon_loss, 'Loss_D_fake': d_fake_loss, 'Loss_D_real' : d_real_loss, 'G_adversarial_loss' : g_adversarial_loss}, step=i)
+
                 high_epoch_g_model_name = 'g_high_epoch'
                 high_epoch_d_model_name = 'd_high_epoch'
                 g_model_save_path = './models/' + high_epoch_g_model_name
                 d_model_save_path = './models/' + high_epoch_d_model_name
-                                
+                                    
+                if i%50 == 0 and self.wandb:
+                        pixels_gen = g_output[0].detach().cpu().permute(1,2,0).numpy()
+                        pixels_noise = input_w_noise[0].detach().cpu().permute(1,2,0).numpy()
+                        pixels_input = input[0].detach().cpu().permute(1,2,0).numpy()
+                        np.rot90(pixels_gen, k=0, axes=(1,0))
+                        np.rot90(pixels_noise, k=0, axes=(1,0))
+                        np.rot90(pixels_input, k=0, axes=(1,0))
+                    
+                        fake_image = wandb.Image(pixels_gen, caption="Generator Image")
+                        noisy_image_fake = wandb.Image(pixels_noise, caption="Noisy input sample")
+                        input_image = wandb.Image(pixels_input, caption="Input image")
+                        
+                        wandb.log({'Input images': input_image, 'Noisy image sample': noisy_image_fake, 'Generator Images': fake_image})     
+                                  
                 if i%1 == 0:
                     opts_ft = parse_opts_ft() #opts for phase two
 
@@ -144,13 +195,25 @@ class OGNet(nn.Module):
 
                         print('Epoch {0} / Iteration {1}, before phase two: '.format(num_epoch, i))                        
                         
-                        check_auc(g_model_save_path, d_model_save_path,1)
+                        auc, F1_score = check_auc(g_model_save_path, d_model_save_path,1)
+                        AUC_phase1.append(auc)
+                        # EER_phase1.append(EER_pre)
+                        # EER_thres_phase1.append(eer_thres_pre)
+                        F1_score_phase1.append(F1_score)
+                    
                         fine_tune() #Phase two
                         print('After phase two: ')
 
-
-                        check_auc(g_model_save_path, d_model_save_path,1)
-
+                        auc2, F1_score2 = check_auc(g_model_save_path, d_model_save_path,1)
+                        AUC_phase2.append(auc2)
+                        # EER_phase2.append(EER_post)
+                        # EER_thres_phase2.append(eer_thres_post)
+                        F1_score_phase2.append(F1_score2)
+                        
+                        if self.wandb:
+                            wandb.log({'AUC_phase_1' : AUC_phase1 , 'F1_score_phase_1' : F1_score_phase1, 'AUC_phase_2' : AUC_phase2 , 'F1_score_phase_2' : F1_score_phase2 }, step=i)
+                        #     wandb.log({'AUC_phase_2' : AUC_phase2 ,'EER1_phase_2': EER_phase2, 'EER1_thresh_phase_2' : EER_thres_phase2, 'F1_score_phase_2' : F1_score_phase2}, step=i)
+                            
     def test_patches(self,g_model_path, d_model_path,i):  #test all images/patches present inside a folder on given g and d models. Returns d score of each patch
         checkpoint_epoch_g = -1
         g_checkpoint = torch.load(g_model_path)
@@ -177,6 +240,7 @@ class OGNet(nn.Module):
             input = input.cuda()
             g_output = self.g(input)
             d_fake_output = self.d(g_output)
+            
             count +=1
             d_results.append(d_fake_output.cpu().detach().numpy())
             labels.append(label)
