@@ -136,7 +136,7 @@ class OGNet(nn.Module):
                 g_optim.step()
                 
                 if self.wandb:
-                    wandb.log({'Loss_G' : g_sum_loss, 'Recon_G_loss': g_recon_loss, 'Loss_D_fake': d_fake_loss, 'Loss_D_real' : d_real_loss, 'G_adversarial_loss' : g_adversarial_loss}, step=i)
+                    wandb.log({'Loss_G' : g_sum_loss, 'Recon_G_loss': g_recon_loss, 'Loss_D_fake': d_fake_loss, 'Loss_D_real' : d_real_loss, 'G_adversarial_loss' : g_adversarial_loss})
 
                 high_epoch_g_model_name = 'g_high_epoch'
                 high_epoch_d_model_name = 'd_high_epoch'
