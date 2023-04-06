@@ -36,7 +36,7 @@ def check_auc(g_model_path, d_model_path, i):
     AUC = metrics.auc(fpr1, tpr1)
     print("AUC: {0}, EER: {1}, EER_thr: {2}, F1_score: {3}".format(AUC, EER1,
                                                                   eer_threshold1,f1_score))
-    return AUC, f1_score
+    return AUC, f1_score, d_results
 
 class OGNet(nn.Module):
     @staticmethod
@@ -75,25 +75,18 @@ class OGNet(nn.Module):
                 "epochs" : self.epoch,
                 "batch size" : self.batch_size,
                 },
-                name=f'{self.epoch}_{self.batch_size}_glr{self.g_learning_rate}_dlr{self.d_learning_rate}'
+                name="{0}_{1}_glr{2}_dlr{3}".format(self.epoch, self.batch_size, self.g_learning_rate, self.d_learning_rate)
             )
             
-        G_losses = []
-        G_recon_losses = []
-        G_adv_losses = []
-        D_losses = []
         AUC_phase1 = []
-        EER_phase1 = []
-        EER_thres_phase1 = []
         F1_score_phase1 = []
         
         AUC_phase2 = []
-        EER_phase2 = []
-        EER_thres_phase2 = []
         F1_score_phase2 = []
         
         self.g.train()
         self.d.train()
+        print("Length of dataloader:", len(self.dataloader))
 
         # Set optimizators
         g_optim = optim.Adam(self.g.parameters(), lr=self.g_learning_rate)
@@ -150,7 +143,7 @@ class OGNet(nn.Module):
                 g_model_save_path = './models/' + high_epoch_g_model_name
                 d_model_save_path = './models/' + high_epoch_d_model_name
                                     
-                if i%50 == 0 and self.wandb:
+                if i%150 == 0 and self.wandb:
                         pixels_gen = g_output[0].detach().cpu().permute(1,2,0).numpy()
                         pixels_noise = input_w_noise[0].detach().cpu().permute(1,2,0).numpy()
                         pixels_input = input[0].detach().cpu().permute(1,2,0).numpy()
@@ -162,7 +155,7 @@ class OGNet(nn.Module):
                         noisy_image_fake = wandb.Image(pixels_noise, caption="Noisy input sample")
                         input_image = wandb.Image(pixels_input, caption="Input image")
                         
-                        wandb.log({'Input images': input_image, 'Noisy image sample': noisy_image_fake, 'Generator Images': fake_image})     
+                        wandb.log({'Input images': input_image, 'Noisy image sample': noisy_image_fake, 'Train_Generator Image': fake_image})     
                                   
                 if i%1 == 0:
                     opts_ft = parse_opts_ft() #opts for phase two
@@ -195,7 +188,7 @@ class OGNet(nn.Module):
 
                         print('Epoch {0} / Iteration {1}, before phase two: '.format(num_epoch, i))                        
                         
-                        auc, F1_score = check_auc(g_model_save_path, d_model_save_path,1)
+                        auc, F1_score, results = check_auc(g_model_save_path, d_model_save_path,1)
                         AUC_phase1.append(auc)
                         # EER_phase1.append(EER_pre)
                         # EER_thres_phase1.append(eer_thres_pre)
@@ -204,7 +197,7 @@ class OGNet(nn.Module):
                         fine_tune() #Phase two
                         print('After phase two: ')
 
-                        auc2, F1_score2 = check_auc(g_model_save_path, d_model_save_path,1)
+                        auc2, F1_score2, dresults = check_auc(g_model_save_path, d_model_save_path,1)
                         AUC_phase2.append(auc2)
                         # EER_phase2.append(EER_post)
                         # EER_thres_phase2.append(eer_thres_post)
@@ -215,6 +208,7 @@ class OGNet(nn.Module):
                         #     wandb.log({'AUC_phase_2' : AUC_phase2 ,'EER1_phase_2': EER_phase2, 'EER1_thresh_phase_2' : EER_thres_phase2, 'F1_score_phase_2' : F1_score_phase2}, step=i)
                             
     def test_patches(self,g_model_path, d_model_path,i):  #test all images/patches present inside a folder on given g and d models. Returns d score of each patch
+        test_opts = parse_opts()
         checkpoint_epoch_g = -1
         g_checkpoint = torch.load(g_model_path)
         self.g.load_state_dict(g_checkpoint['g_model_state_dict'])
@@ -241,8 +235,25 @@ class OGNet(nn.Module):
             g_output = self.g(input)
             d_fake_output = self.d(g_output)
             
+            if count%150 == 0 and test_opts.wandb:
+                pixels_gen = g_output[0].detach().cpu().permute(1,2,0).numpy()
+                # pixels_d_fake = d_fake_output[0].detach().cpu().permute(1,2,0).numpy()
+                pixels_input = input[0].detach().cpu().permute(1,2,0).numpy()
+                np.rot90(pixels_gen, k=0, axes=(1,0))
+                # np.rot90(pixels_d_fake, k=0, axes=(1,0))
+                np.rot90(pixels_input, k=0, axes=(1,0))
+                    
+                fake_image = wandb.Image(pixels_gen, caption="Generator Image")
+                # noisy_image_fake = wandb.Image(pixels_d_fake, caption="Discriminator fake output")
+                input_image = wandb.Image(pixels_input, caption="Input image")
+                        
+                wandb.log({'Test_image_real': input_image, 'Test_image_fake': fake_image}) #'Discriminator image sample': noisy_image_fake, 'Test_Generator Image': fake_image})
+            
             count +=1
             d_results.append(d_fake_output.cpu().detach().numpy())
+
             labels.append(label)
+            if test_opts.wandb:
+                wandb.log({'Discriminator results': d_results, 'Labels': labels})
         return d_results, labels
 
