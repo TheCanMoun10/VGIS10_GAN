@@ -129,6 +129,7 @@ dmypy.json
 *.png
 *.JPEG
 *.PNG
+*.tif
 
 *.avi
 *.mp4
@@ -157,3 +158,5 @@ wandb/
 
 # zip
 *.zip
+
+models/
