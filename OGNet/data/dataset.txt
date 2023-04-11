@@ -5,3 +5,15 @@ For training images:
 For testing images:
 Class 0:  ./data/test/0/*.png
 Class 1:  ./data/test/1/*.png
+
+### Datasets.
+* CUHK Avenue [dataset](https://github.com/StevenLiuWen/ano_pred_cvpr2018)
+
+These datasets are from an official github of "Future Frame Prediction for Anomaly Detection - A New Baseline (CVPR 2018)".
+
+Download the datasets into [datasets](./AnomalyDetection/datasets/) folder, like ./datasets/avenue/
+For OGNet the testing folder should be divided into two subfolders frames and frames2
+
+### Other datasets that can be used:
+* ShanghaiTech [dataset](https://github.com/StevenLiuWen/ano_pred_cvpr2018)
+* USCD Ped2 [dataset](https://github.com/StevenLiuWen/ano_pred_cvpr2018)
