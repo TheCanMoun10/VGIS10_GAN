@@ -18,7 +18,7 @@ def check_auc(g_model_path, d_model_path, i):
     opt_auc = parse_opts()
     opt_auc.batch_shuffle = False
     opt_auc.drop_last = False
-    opt_auc.data_path = './data/avenue/test'
+    opt_auc.data_path = './data/avenue_full/testing'
     dataloader = load_data(opt_auc)
     model = OGNet(opt_auc, dataloader)
     model.cuda()
@@ -75,7 +75,7 @@ class OGNet(nn.Module):
                 "epochs" : self.epoch,
                 "batch size" : self.batch_size,
                 },
-                name="{0}_{1}_glr{2}_dlr{3}".format(self.epoch, self.batch_size, self.g_learning_rate, self.d_learning_rate)
+                name="avenue_{4}_{0}_{1}_glr{2}_dlr{3}".format(self.epoch, self.batch_size, self.g_learning_rate, self.d_learning_rate, len(self.dataloader)) # Name conversion: dataset_dataloaderLen_epoch_batchsize_glr_dlr 
             )
             
         AUC_phase1 = []
@@ -204,7 +204,7 @@ class OGNet(nn.Module):
                         F1_score_phase2.append(F1_score2)
                         
                         if self.wandb:
-                            wandb.log({'AUC_phase_1' : AUC_phase1 , 'F1_score_phase_1' : F1_score_phase1, 'AUC_phase_2' : AUC_phase2 , 'F1_score_phase_2' : F1_score_phase2 }, step=i)
+                            wandb.log({'AUC_phase_1' : AUC_phase1 , 'F1_score_phase_1' : F1_score_phase1, 'AUC_phase_2' : AUC_phase2 , 'F1_score_phase_2' : F1_score_phase2 })
                         #     wandb.log({'AUC_phase_2' : AUC_phase2 ,'EER1_phase_2': EER_phase2, 'EER1_thresh_phase_2' : EER_thres_phase2, 'F1_score_phase_2' : F1_score_phase2}, step=i)
                             
     def test_patches(self,g_model_path, d_model_path,i):  #test all images/patches present inside a folder on given g and d models. Returns d score of each patch
@@ -235,7 +235,7 @@ class OGNet(nn.Module):
             g_output = self.g(input)
             d_fake_output = self.d(g_output)
             
-            if count%250 == 0 and test_opts.wandb:
+            if count%150 == 0 and test_opts.wandb:
                 pixels_gen = g_output[0].detach().cpu().permute(1,2,0).numpy()
                 # pixels_d_fake = d_fake_output[0].detach().cpu().permute(1,2,0).numpy()
                 pixels_input = input[0].detach().cpu().permute(1,2,0).numpy()
@@ -253,7 +253,7 @@ class OGNet(nn.Module):
             d_results.append(d_fake_output.cpu().detach().numpy())
 
             labels.append(label)
-            if test_opts.wandb:
-                wandb.log({'Discriminator results': d_results, 'Labels': labels})
+            # if test_opts.wandb:
+            #     wandb.log({'Discriminator results': d_results, 'Labels': labels})
         return d_results, labels
 
