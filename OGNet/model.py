@@ -144,7 +144,7 @@ class OGNet(nn.Module):
                 g_model_save_path = './models/' + high_epoch_g_model_name
                 d_model_save_path = './models/' + high_epoch_d_model_name
                                     
-                if i%150 == 0 and self.wandb:
+                if i%500 == 0 and self.wandb:
                         pixels_gen = g_output[0].detach().cpu().permute(1,2,0).numpy()
                         pixels_noise = input_w_noise[0].detach().cpu().permute(1,2,0).numpy()
                         pixels_input = input[0].detach().cpu().permute(1,2,0).numpy()
@@ -236,7 +236,7 @@ class OGNet(nn.Module):
             g_output = self.g(input)
             d_fake_output = self.d(g_output)
             
-            if count%150 == 0 and test_opts.wandb:
+            if count%500 == 0 and test_opts.wandb:
                 pixels_gen = g_output[0].detach().cpu().permute(1,2,0).numpy()
                 # pixels_d_fake = d_fake_output[0].detach().cpu().permute(1,2,0).numpy()
                 pixels_input = input[0].detach().cpu().permute(1,2,0).numpy()
