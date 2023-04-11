@@ -26,31 +26,17 @@ conda env create -f environment.yml
 * Numpy
 * Sklearn
 
-## Training
+## OGNet Training and testing:
+Before training make sure to create the necessary folders:
+```bash
+mkdir models
+mkdir results
+```
+
 ```bash
 https://github.com/TheCanMoun10/VGIS10_GAN
-cd AnomalyDetection
-python Train_recons_wo_mem.py # for training
-```
-* You can freely define parameters with your own settings like
-```bash
-python OGNet_Train_recons_wo_mem.py --gpus 1 --dataset_path ./path/to/datasets/folder --dataset_type avenue --exp_dir ./path/to/experiments/folder
-```
-For example:
-```bash
-python OGNet_Train_recons_wo_mem.py --lr 0.000001 --epochs 5 --batch_size 5 --t_length 2 --dataset_type avenue --h 64 --w 64
-```
-
-To log training in wandb use:
-```bash
-python OGNet_Train_recons_wo_mem.py --lr 0.000001 --epochs 5 --batch_size 5 --t_length 2 --dataset_type avenue --h 64 --w 64 --wandb
-```
-
-## Evaluation
-* Test your own model
-* Check your dataset_type (ped2, avenue or shanghai)
-```bash
-python Evaluate_recons_wo_mem.py --t_length 2 --alpha 0.7 --th 0.015 --dataset_type avenue --model_dir ./path/to/model.pth
+cd OGet
+python train.py --data_path ./data/avenue_full/training --nc 3 --normal_class frames --epoch 26 --batch_size 32 --n_threads 0 --image_grids_numbers 30 --wandb
 ```
 
 ## Datasets.
@@ -59,6 +45,7 @@ python Evaluate_recons_wo_mem.py --t_length 2 --alpha 0.7 --th 0.015 --dataset_t
 These datasets are from an official github of "Future Frame Prediction for Anomaly Detection - A New Baseline (CVPR 2018)".
 
 Download the datasets into [datasets](./AnomalyDetection/datasets/) folder, like ``./datasets/avenue/``
+For OGNet the testing folder should be divided into two subfolders ``frames`` and ``frames2``
 
 ### Other datasets that can be used:
 * ShanghaiTech [dataset](https://github.com/StevenLiuWen/ano_pred_cvpr2018)
