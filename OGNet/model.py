@@ -74,8 +74,9 @@ class OGNet(nn.Module):
                 "dataset": 'avenue',
                 "epochs" : self.epoch,
                 "batch size" : self.batch_size,
+                "Dataloader size" : len(self.dataloader)
                 },
-                name="avenue_{4}_{0}_{1}_glr{2}_dlr{3}".format(self.epoch, self.batch_size, self.g_learning_rate, self.d_learning_rate, len(self.dataloader)) # Name conversion: dataset_dataloaderLen_epoch_batchsize_glr_dlr 
+                name="avenue_{4}_avenue_{4}_{0}_{1}_glr{2}_dlr{3}".format(self.epoch, self.batch_size, self.g_learning_rate, self.d_learning_rate, len(self.dataloader), len(self.dataloader)) # Name conversion: dataset_dataloaderLen_epoch_batchsize_glr_dlr 
             )
             
         AUC_phase1 = []
