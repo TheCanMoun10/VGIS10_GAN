@@ -20,6 +20,10 @@ def check_auc(g_model_path, d_model_path, i):
     opt_auc.drop_last = False
     opt_auc.data_path = './data/avenue_full/testing'
     dataloader = load_data(opt_auc)
+    print_len = True
+    if i == 1 and print_len == True:
+        print("Length of training data: {0}".format(len(dataloader)))
+        print_len = False
     model = OGNet(opt_auc, dataloader)
     model.cuda()
     d_results, labels = model.test_patches(g_model_path, d_model_path, i)
@@ -76,7 +80,7 @@ class OGNet(nn.Module):
                 "batch size" : self.batch_size,
                 "Dataloader size" : len(self.dataloader)
                 },
-                name="avenue_{4}_avenue_{4}_{0}_{1}_glr{2}_dlr{3}".format(self.epoch, self.batch_size, self.g_learning_rate, self.d_learning_rate, len(self.dataloader), len(self.dataloader)) # Name conversion: dataset_dataloaderLen_epoch_batchsize_glr_dlr 
+                name="avenue_{4}_{0}_{1}_glr{2}_dlr{3}".format(self.epoch, self.batch_size, self.g_learning_rate, self.d_learning_rate, len(self.dataloader), len(self.dataloader)) # Name conversion: dataset_dataloaderLen_epoch_batchsize_glr_dlr 
             )
             
         AUC_phase1 = []
@@ -144,7 +148,8 @@ class OGNet(nn.Module):
                 g_model_save_path = './models/' + high_epoch_g_model_name
                 d_model_save_path = './models/' + high_epoch_d_model_name
                                     
-                if i%500 == 0 and self.wandb:
+                if i%1000 == 0 and self.wandb:
+                        print("Epoch: {0}".format(num_epoch))
                         pixels_gen = g_output[0].detach().cpu().permute(1,2,0).numpy()
                         pixels_noise = input_w_noise[0].detach().cpu().permute(1,2,0).numpy()
                         pixels_input = input[0].detach().cpu().permute(1,2,0).numpy()
@@ -236,7 +241,7 @@ class OGNet(nn.Module):
             g_output = self.g(input)
             d_fake_output = self.d(g_output)
             
-            if count%500 == 0 and test_opts.wandb:
+            if count%2000 == 0 and test_opts.wandb:
                 pixels_gen = g_output[0].detach().cpu().permute(1,2,0).numpy()
                 # pixels_d_fake = d_fake_output[0].detach().cpu().permute(1,2,0).numpy()
                 pixels_input = input[0].detach().cpu().permute(1,2,0).numpy()
