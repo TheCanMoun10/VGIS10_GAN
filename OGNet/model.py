@@ -21,9 +21,9 @@ def check_auc(g_model_path, d_model_path, i):
     opt_auc.data_path = './data/avenue_full/testing'
     dataloader = load_data(opt_auc)
     print_len = True
-    if i == 1 and print_len == True:
-        print("Length of training data: {0}".format(len(dataloader)))
-        print_len = False
+    # if i == 1 and print_len == True:
+    #     print("Length of training data: {0}".format(len(dataloader)))
+    #     print_len = False
     model = OGNet(opt_auc, dataloader)
     model.cuda()
     d_results, labels = model.test_patches(g_model_path, d_model_path, i)
@@ -148,20 +148,23 @@ class OGNet(nn.Module):
                 g_model_save_path = './models/' + high_epoch_g_model_name
                 d_model_save_path = './models/' + high_epoch_d_model_name
                                     
-                if i%1000 == 0 and self.wandb:
-                        print("Epoch: {0}".format(num_epoch))
-                        pixels_gen = g_output[0].detach().cpu().permute(1,2,0).numpy()
-                        pixels_noise = input_w_noise[0].detach().cpu().permute(1,2,0).numpy()
-                        pixels_input = input[0].detach().cpu().permute(1,2,0).numpy()
-                        np.rot90(pixels_gen, k=0, axes=(1,0))
-                        np.rot90(pixels_noise, k=0, axes=(1,0))
-                        np.rot90(pixels_input, k=0, axes=(1,0))
-                    
-                        fake_image = wandb.Image(pixels_gen, caption="Generator Image")
-                        noisy_image_fake = wandb.Image(pixels_noise, caption="Noisy input sample")
-                        input_image = wandb.Image(pixels_input, caption="Input image")
+                if i%1000 == 0:
+                        opts_ft = parse_opts_ft() #opts for phase two
+                        print("Epoch: [{0} / {1}], Loss G: {2}, G Recon Loss: {3}, G Adv. Loss: {4}, D loss real: {5}, D loss fake: {6}".format(num_epoch, opts_ft.high_epoch, g_sum_loss, g_recon_loss, g_adversarial_loss, d_real_loss, d_fake_loss))
+                        # print("Loss G: {0}, G Recon Loss: {1}, G Adv. Loss: {2}, D loss real: {3}, D loss fake: {4}".format(g_sum_loss, g_recon_loss, g_adversarial_loss, d_real_loss, d_fake_loss))
+                        if self.wandb:
+                            pixels_gen = g_output[0].detach().cpu().permute(1,2,0).numpy()
+                            pixels_noise = input_w_noise[0].detach().cpu().permute(1,2,0).numpy()
+                            pixels_input = input[0].detach().cpu().permute(1,2,0).numpy()
+                            np.rot90(pixels_gen, k=0, axes=(1,0))
+                            np.rot90(pixels_noise, k=0, axes=(1,0))
+                            np.rot90(pixels_input, k=0, axes=(1,0))
                         
-                        wandb.log({'Input images': input_image, 'Noisy image sample': noisy_image_fake, 'Train_Generator Image': fake_image})     
+                            fake_image = wandb.Image(pixels_gen, caption="Generator Image")
+                            noisy_image_fake = wandb.Image(pixels_noise, caption="Noisy input sample")
+                            input_image = wandb.Image(pixels_input, caption="Input image")
+                            
+                            wandb.log({'Input image': input_image, 'Noisy image sample': noisy_image_fake, 'Generator Image': fake_image})     
                                   
                 if i%1 == 0:
                     opts_ft = parse_opts_ft() #opts for phase two

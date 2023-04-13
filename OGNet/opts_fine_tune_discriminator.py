@@ -19,7 +19,7 @@ def parse_opts_ft():
     parser.add_argument('--frame_size', default=45, type=int, help='one side size of the square patch to be extracted from each frame')
     parser.add_argument('--low_epoch', default=0, type=int, help='low epoch i.e. Gold for phase two')
     parser.add_argument('--high_epoch', default=20, type=int, help='high epoch i.e. Gn for phase two')
-    parser.add_argument('--iterations', default=75, type=int, help='iterations for phase two')
+    parser.add_argument('--iterations', default=25, type=int, help='iterations for phase two')
     parser.add_argument('--wandb', action='store_true', help='Use wandb to log and visualize network training')
     parser.add_argument('--image_grids_numbers', default=64, type=int, help='total number of grid squares to be saved every / few epochs')
     args = parser.parse_args()
