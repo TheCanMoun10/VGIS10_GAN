@@ -150,7 +150,7 @@ class OGNet(nn.Module):
                                     
                 if i%1000 == 0:
                         opts_ft = parse_opts_ft() #opts for phase two
-                        print("Epoch: [{0} / {1}], Loss G: {2}, G Recon Loss: {3}, G Adv. Loss: {4}, D loss real: {5}, D loss fake: {6}".format(num_epoch, opts_ft.high_epoch, g_sum_loss, g_recon_loss, g_adversarial_loss, d_real_loss, d_fake_loss))
+                        print("Epoch: [{0} / {1}], Loss G: {2}, G Recon Loss: {3}, G Adv. Loss: {4}, D loss: {7}, D loss real: {5}, D loss fake: {6}".format(num_epoch, opts_ft.high_epoch, g_sum_loss, g_recon_loss, g_adversarial_loss, d_real_loss, d_fake_loss, d_sum_loss))
                         # print("Loss G: {0}, G Recon Loss: {1}, G Adv. Loss: {2}, D loss real: {3}, D loss fake: {4}".format(g_sum_loss, g_recon_loss, g_adversarial_loss, d_real_loss, d_fake_loss))
                         if self.wandb:
                             pixels_gen = g_output[0].detach().cpu().permute(1,2,0).numpy()
