@@ -148,20 +148,21 @@ class OGNet(nn.Module):
                 g_model_save_path = './models/' + high_epoch_g_model_name
                 d_model_save_path = './models/' + high_epoch_d_model_name
                                     
-                if i%1000 == 0 and self.wandb:
-                        print("Epoch: {0}".format(num_epoch))
-                        pixels_gen = g_output[0].detach().cpu().permute(1,2,0).numpy()
-                        pixels_noise = input_w_noise[0].detach().cpu().permute(1,2,0).numpy()
-                        pixels_input = input[0].detach().cpu().permute(1,2,0).numpy()
-                        np.rot90(pixels_gen, k=0, axes=(1,0))
-                        np.rot90(pixels_noise, k=0, axes=(1,0))
-                        np.rot90(pixels_input, k=0, axes=(1,0))
-                    
-                        fake_image = wandb.Image(pixels_gen, caption="Generator Image")
-                        noisy_image_fake = wandb.Image(pixels_noise, caption="Noisy input sample")
-                        input_image = wandb.Image(pixels_input, caption="Input image")
+                if i%1000 == 0:
+                        print("Epoch: [{0} / {1}], G Recon loss: {2}, G Adv. Loss: {3}, D loss real: {4}, D loss fake: {5}".format(num_epoch, self.epoch, g_recon_loss, g_adversarial_loss, d_real_loss, d_fake_loss))
+                        if self.wandb:
+                            pixels_gen = g_output[0].detach().cpu().permute(1,2,0).numpy()
+                            pixels_noise = input_w_noise[0].detach().cpu().permute(1,2,0).numpy()
+                            pixels_input = input[0].detach().cpu().permute(1,2,0).numpy()
+                            np.rot90(pixels_gen, k=0, axes=(1,0))
+                            np.rot90(pixels_noise, k=0, axes=(1,0))
+                            np.rot90(pixels_input, k=0, axes=(1,0))
                         
-                        wandb.log({'Input images': input_image, 'Noisy image sample': noisy_image_fake, 'Train_Generator Image': fake_image})     
+                            fake_image = wandb.Image(pixels_gen, caption="Generator Image")
+                            noisy_image_fake = wandb.Image(pixels_noise, caption="Noisy input sample")
+                            input_image = wandb.Image(pixels_input, caption="Input image")
+                            
+                            wandb.log({'Input images': input_image, 'Noisy image sample': noisy_image_fake, 'Train_Generator Image': fake_image})     
                                   
                 if i%1 == 0:
                     opts_ft = parse_opts_ft() #opts for phase two
