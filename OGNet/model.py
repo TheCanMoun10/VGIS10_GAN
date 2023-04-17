@@ -160,9 +160,9 @@ class OGNet(nn.Module):
                             np.rot90(pixels_noise, k=0, axes=(1,0))
                             np.rot90(pixels_input, k=0, axes=(1,0))
                         
-                            fake_image = wandb.Image(pixels_gen, caption="Generator Image")
-                            noisy_image_fake = wandb.Image(pixels_noise, caption="Noisy input sample")
-                            input_image = wandb.Image(pixels_input, caption="Input image")
+                            fake_image = wandb.Image(pixels_gen, caption="Generator Image epoch {0}".format(num_epoch))
+                            noisy_image_fake = wandb.Image(pixels_noise, caption="Noisy input sample epoch {0}".format(num_epoch))
+                            input_image = wandb.Image(pixels_input, caption="Input image epoch {0}".format(num_epoch))
                             
                             wandb.log({'Input image': input_image, 'Noisy image sample': noisy_image_fake, 'Generator Image': fake_image})     
                                   
