@@ -71,7 +71,7 @@ parser.add_argument('--exp_dir', type=str, default='log', help='directory of log
 parser.add_argument('--nega_loss', action='store_true', help='Apply negative loss to model')
 parser.add_argument('--nega_value', type=float, default=0.02, help='Value to degrade loss')
 parser.add_argument('--train', action='store_true', help='Initialize training')
-parser.add_argument('--loss', type=str, default="cross", help='Define the type of loss used: cross, L1, L2 (MSE)')
+parser.add_argument('--loss', type=str, default="MSE", help='Define the type of loss used: cross, L1, L2 (MSE)')
 parser.add_argument('--img_norm', type=str, default='mnad_norm', help='Define image normalization for dataloader: mnad_norm [-1, 1], dyn_norm [0, 1]')
 parser.add_argument('--wandb', action='store_true', help='Use wandb to log and visualize network training')
 parser.add_argument('--sigma_noise', type=float, default=0.5, help="Sigma value for gaussian noise added to training." )
@@ -82,7 +82,7 @@ parser.add_argument('--flip', type=str, default='none', help='Apply horizontal f
 parser.add_argument('--crop', type=str, default='none', help='Apply random crop on input images. [ true | none ].')
 parser.add_argument('--crop_factor', type=int, default=4, help='Factor with which to crop images. height // crop_factor.')
 parser.add_argument('--p_val', type=float, default=0.5, help='Probability with which to apply the transforms')
-parser.add_argument('--normalize', type=bool, default=True, help='Normalize tensors')
+parser.add_argument('--normalize', type=bool, default=False, help='Normalize tensors')
 
 
 args = parser.parse_args()
@@ -96,7 +96,7 @@ else:
     norm = "MNAD normalization [-1, 1]"
 
 if args.wandb:    
-    wandb.init(project="VGIS10_MNAD",
+    wandb.init(project="VGIS10_MNADrc",
             
             config={
                 "learning_rate": args.lr,
@@ -110,7 +110,7 @@ if args.wandb:
                 "Image normalization" : norm,
                 "Loss" : args.loss
                 },
-                name=f'{args.mode}_{args.dataset_type}_batch{args.batch_size}_{args.loss}_epochs{args.epochs}_lr{args.lr}_{args.img_norm}'
+                name="{0}_{1}_batch{2}_{3}_epochs{4}_lr{5}_{6}".format(args.mode, args.dataset_type, args.batch_size, args.epochs, args.lr, args.img_norm)
             
             )
 
@@ -130,8 +130,8 @@ else:
 
 torch.backends.cudnn.enabled = True # make sure to use cudnn for computational performance
 
-train_folder = args.dataset_path+args.dataset_type+"/training/frames"
-test_folder = args.dataset_path+args.dataset_type+"/testing/frames"
+train_folder = args.dataset_path + args.dataset_type +"/training/frames"
+test_folder = args.dataset_path + args.dataset_type +"/testing/frames"
 
 transforms_list = []
 if args.transforms == 'true':
@@ -147,12 +147,14 @@ transforms_list += [transforms.ToTensor()]
 if args.normalize == True:
     transforms_list +=[transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
 
+print("Transforms applied to tensors: ", transforms_list)
+
 # Loading dataset
-train_dataset = DataLoader(train_folder, transforms.Compose(transforms_list), resize_height=args.h, resize_width=args.w, time_step=args.t_length-1,num_pred = 0, img_norm=args.img_norm)
+train_dataset = DataLoader(train_folder, transforms.Compose(transforms_list), resize_height=args.h, resize_width=args.w, time_step=args.t_length-1, num_pred = 0, img_norm=args.img_norm)
 
 test_dataset = DataLoader(test_folder, transforms.Compose([
              transforms.ToTensor(),            
-             ]), resize_height=args.h, resize_width=args.w, time_step=args.t_length-1,num_pred = 0, img_norm=args.img_norm)
+             ]), resize_height=args.h, resize_width=args.w, time_step=args.t_length-1, num_pred = 0, img_norm=args.img_norm)
 
 train_size = len(train_dataset)
 test_size = len(test_dataset)
@@ -164,7 +166,6 @@ test_batch = data.DataLoader(test_dataset, batch_size = args.test_batch_size,
 
 
 # Model setting
-beta1 = 0.5
 if args.loss == "L1":
     loss_func = nn.L1Loss(reduction='none') #L1 loss
 elif args.loss == "L2" or args.loss == 'MSE':
@@ -176,122 +177,69 @@ else:
 
 # Setup generator and discriminator:
 netG = convAE(args.c, args.t_length, args.msize, args.fdim, args.mdim)
-netD = OpenGAN_Discriminator(ngpu=1, nc=args.c, ndf=args.fdim)
-# netG = Generator(args.c)
-# netD = Discriminator(args.c)
-
 
 params_encoder =  list(netG.encoder.parameters()) 
 params_decoder = list(netG.decoder.parameters())
 paramsG = params_encoder + params_decoder
-paramsD = netD.parameters()
+optimizerG = torch.optim.Adam(paramsG, lr = args.lr)
+scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizerG,T_max =args.epochs)
 netG.cuda()
-netD.cuda()
 if args.wandb:
     wandb.watch(netG)
-    wandb.watch(netD)
 
 # Report the training process
-hourminute = '{:02d}:{:02d}'.format(today.hour, today.minute)
-log_dir = os.path.join('./exp', args.dataset_type, f'{args.exp_dir}_lr{args.lr}_{timestring}', hourminute, f'{args.img_norm}')
+hourminute = '{:02d}{:02d}'.format(today.hour, today.minute)
+log_dir = os.path.join('./exp', args.dataset_type, "{0}_lr{1}_{2}".format(args.exp_dir, args.lr, timestring), hourminute, f'{args.img_norm}')
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
 
-
 # Training
 best_test = float("inf")
-# m_items = F.normalize(torch.rand((args.msize, args.mdim), dtype=torch.float), dim=1).cuda() # Initialize the memory items
+m_items = F.normalize(torch.rand((args.msize, args.mdim), dtype=torch.float), dim=1).cuda() # Initialize the memory items
 
 # Sanity check of generator and discriminator:
 noise = torch.randn(args.batch_size, args.c ,args.h, args.w).cuda()
-fake = netG(noise)
-predLabel = netD(fake)
+fake = netG(noise, m_items)
 
-print(f"Sanity check of netG and netD: \n"
+print(f"Sanity check of netG: \n"
       f"noise: {noise.shape} \t"
-      f"netG: {fake.shape} \t"
-      f"netD: {predLabel.shape} \n")
+      f"netG: {fake.shape} \t" )
 
-
-img_list = []
 G_losses = [] # Generator losses
-D_losses = [] # Discriminator losses
-iters = 0
-
-netG.train()
-netD.train()
-
-optimizerG = torch.optim.Adam(paramsG, lr = args.lr, betas=(beta1, 0.999))
-optimizerD = torch.optim.Adam(paramsD, lr=args.lr/1.5, betas=(beta1, 0.999))
-scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizerG,T_max =args.epochs)
-
-fake_label = 1
-real_label = 0
 
 for epoch in range(args.epochs):
     labels_list = []
     example_images = []
     input_images = []
-    
+    netG.train()
     start = time.time()
     train_loss = AverageMeter()
-    for j,(imgs) in enumerate(train_batch, 0):
-        # Updating discriminator:
-        netD.zero_grad()
+    
+    for j,(imgs) in enumerate(train_batch):
         imgs = Variable(imgs).cuda()
-        #b_size = imgs.size(0)
-        #label = torch.full((b_size,), real_label).cuda()
-        
+        g_output = netG.forward(imgs, m_items, True)
         optimizerG.zero_grad()
-        optimizerD.zero_grad()
-        sigma = args.sigma_noise ** 2
-        input_w_noise = gaussian(imgs, 1, 0, sigma)
         
-        # Generator inference:
-        g_output_1 = netG(imgs)
-        g_output = netG(input_w_noise)
-        
-        vutils.save_image(imgs[0], os.path.join(log_dir, '%03d_real_sample_epoch.png' % (epoch)), normalize=True)
-        vutils.save_image(g_output_1[0], os.path.join(log_dir, '%03d_fake_sample_epoch.png' % (epoch)), normalize=True)
-        vutils.save_image(g_output[0], os.path.join(log_dir, '%03d_noise_sample_epoch.png' % (epoch)), normalize=True)
-
-        ##### TRAINING DISCRIMINATOR #####
-        d_fake_output = netD(g_output)
-        print('d_fake_output tensor shape: {0}'.format(d_fake_output.shape))
-        print('fake_label tensor shape: {0}'.format(fake_label.shape))
-        d_real_output = netD(imgs)
-        print('d_real_output tensor shape: {0}'.format(d_real_output.shape))
-        print('real_label tensor shape: {0}'.format(real_label.shape))
-        d_fake_loss = loss_func(torch.squeeze(d_fake_output), torch.squeeze(fake_label))
-        d_real_loss = loss_func(torch.squeeze(d_real_output), torch.squeeze(real_label))
-        d_sum_loss = 0.5 * (d_fake_loss + d_real_loss)
-        
-        output_D_real = d_real_output.detach().view(-1)
-        output_D_fake = d_fake_output.detach().view(-1)
-        errD = d_sum_loss
-        D_x = output_D_real.mean().item()
-        D_G_z1 = d_fake_output.mean().item()
-        
-        d_sum_loss.backward(retain_graph=True)
-        
-        # Updating discriminator:
-        optimizerD.step()
+        if j % 478 == 0:
+            vutils.save_image(imgs[0], os.path.join(log_dir, '%03d_real_sample_epoch.png' % (epoch)), normalize=True)
+            vutils.save_image(g_output[0], os.path.join(log_dir, '%03d_fake_sample_epoch.png' % (epoch)), normalize=True)
 
         ##### TRAINING GENERATOR #####:
-        netG.zero_grad()
-        g_recon_loss = F.mse_loss(g_output, imgs)
-        g_adversarial_loss = loss_func(d_fake_output, real_label)
-        g_sum_loss = (1-args.training_factor)*g_recon_loss + args.training_factor*g_adversarial_loss
+        loss_pixels = torch.mean(loss_func(g_output, imgs))
+        loss = loss_pixels
         if args.nega_loss:
-            g_sum_loss = -args.nega_value*g_sum_loss
+            loss = -args.nega_value*loss
+        else: 
+            loss = loss
+        train_loss.update(loss.item(), imgs.size(0))
             
-        errG = g_sum_loss
-        output_G = d_fake_output.view(-1)
-        pixels = output_G[0].detach().cpu().permute(1,2,0).numpy()
-        np.rot90(pixels, k=0, axes=(1,0))
-        D_G_z2 = output_G.mean().item()
+        errG = loss
         
-        g_sum_loss.backward()
+        if args.wandb:
+            pixels = g_output[0].detach().cpu().permute(1,2,0).numpy()
+            np.rot90(pixels, k=0, axes=(1,0))
+        
+        loss.backward(retain_graph=True)
         optimizerG.step()
                 
         if(j%100 == 0):
@@ -299,21 +247,15 @@ for epoch in range(args.epochs):
                 f'[{epoch}/{args.epochs}]\t'
                 f'[{j+1}/{len(train_batch)}]\t'
                 f'Loss_G: {errG.item():.4f} \t'
-                f'Loss_D: {errD.item():.4f} \t'
-                f'D(x): {D_x} \t'
-                f'D(G(z)): {D_G_z1:.4f} / {D_G_z2:.4f}'
+                f'Train loss: {train_loss.avg}'
                 )
  
-        
-        G_losses.append(errG.item())
-        D_losses.append(errD.item())
-        
         if args.wandb:
-            wandb.log({'Loss_G' : G_losses ,'Loss_D': D_losses, 'D(x)': D_x, 'D(G(z))_1': D_G_z1, 'D(G(z))_2': D_G_z2,})
+            G_losses.append(errG.item())
+            wandb.log({'Loss_G' : G_losses, 'Train_loss_average' : train_loss.avg})
             
-            if (iters % 200 == 0) or ((epoch == args.epochs-1) and (i == len(train_batch)-1)):
+            if (j % 200 == 0) or ((epoch == args.epochs-1) and (i == len(train_batch)-1)):
                 with torch.no_grad():
-                    
                     input_image = wandb.Image(imgs[0].detach().cpu().permute(1,2,0).numpy(), caption="Input image")
                     image = wandb.Image(pixels, caption=f"Generated anomaly_{j+1}_epoch{epoch+1}")
                     example_images.append(image)
@@ -322,19 +264,19 @@ for epoch in range(args.epochs):
                 
     if(epoch%5 == 0):
         torch.save(netG, os.path.join(log_dir, f'netG_{epoch}_negLoss{args.nega_loss}_model.pth'))
-        torch.save(netD, os.path.join(log_dir, f'netD_{epoch}_negLoss{args.nega_loss}_model.pth'))
-        #torch.save(m_items, os.path.join(log_dir, f'{epoch}_m_items.pt')) 
+        # torch.save(netD, os.path.join(log_dir, f'netD_{epoch}_negLoss{args.nega_loss}_model.pth'))
+        # torch.save(m_items, os.path.join(log_dir, f'{epoch}_m_items.pt')) 
     scheduler.step()
     
     print('----------------------------------------')
     print('Epoch:', epoch+1)
-    print('Loss: Reconstruction {:.6f}'.format(g_recon_loss.item()))
+    print('Loss: Reconstruction {:.6f}'.format(loss_pixels.item()))
     print('----------------------------------------')
     print(f'Train loss avg: {train_loss.avg}')
     
 torch.save(netG, os.path.join(log_dir, f'netG_{epoch}_negLoss{args.nega_loss}_model.pth'))
-torch.save(netD, os.path.join(log_dir, f'netD_{epoch}_negLoss{args.nega_loss}_model.pth'))
-#torch.save(m_items, os.path.join(log_dir, f'{epoch}_m_items.pt')) 
+# torch.save(netD, os.path.join(log_dir, f'netD_{epoch}_negLoss{args.nega_loss}_model.pth'))
+# torch.save(m_items, os.path.join(log_dir, f'{epoch}_m_items.pt')) 
 print('Training is finished')
 print(log_dir)
 
