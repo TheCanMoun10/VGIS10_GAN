@@ -234,7 +234,7 @@ for epoch in range(args.epochs):
 
         ##### TRAINING GENERATOR #####:
         loss_pixels = torch.mean(loss_func(g_output, imgs))
-        loss = 0.5*loss_pixels
+        loss = loss_pixels
         if args.nega_loss:
             loss = -args.nega_value*loss
         train_loss.update(loss.item(), imgs.size(0))
