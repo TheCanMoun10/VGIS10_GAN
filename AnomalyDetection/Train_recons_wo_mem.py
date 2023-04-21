@@ -278,7 +278,7 @@ for epoch in range(args.epochs):
     print('Epoch:', epoch+1)
     print('Loss: Reconstruction {:.6f}'.format(loss_pixels.item()))
     print('----------------------------------------')
-    print(f'Train loss avg: {train_loss.avg}')
+    print('Train loss avg: {:.06f}'.format(train_loss.avg))
 
 model_name = "netG_{0}_NegLoss{1}_{2}_model.pth".format(epoch, args.nega_loss, args.nega_value)    
 torch.save(netG, os.path.join(log_dir, model_name))
