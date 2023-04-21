@@ -88,7 +88,7 @@ parser.add_argument('--test_number', type=int, default=1, help='For testing porp
 args = parser.parse_args()
 
 today = datetime.datetime.today()
-timestring = f"{today.year}{today.month}{today.day}" + "{:02d}{:02d}".format(today.hour, today.minute) #format YYYYMMDDHHMM
+timestring = "{0}{1}{2}".format(today.year,today.month,today.day) # + "{:02d}{:02d}".format(today.hour, today.minute) #format YYYYMMDDHHMM
 if args.img_norm == "dyn_norm":
     norm = "Dynamic normalization [0, 1]"
 else:
@@ -188,8 +188,9 @@ if args.wandb:
 
 # Report the training process
 hourminute = '{:02d}{:02d}'.format(today.hour, today.minute)
+folder_name = "Test{0}-NegaLoss{1}_ImgNorm{2}".format(args.test_number, args.nega_value, args.img_norm)
 # log_dir = os.path.join('./exp', args.dataset_type, f"Test{args.test_number}-NegaLoss{args.nega_value}") # Experiment name
-log_dir = os.path.join('./exp', args.dataset_type, f"Test{args.test_number}-PerfectReconstructionMNADNorm") # Experiment name
+log_dir = os.path.join('./exp', args.dataset_type, folder_name) # Experiment name
 image_folder = os.path.join(log_dir, 'images')
 
 if not os.path.exists(log_dir):
@@ -205,9 +206,9 @@ m_items = F.normalize(torch.rand((args.msize, args.mdim), dtype=torch.float), di
 noise = torch.randn(args.batch_size, args.c ,args.h, args.w).cuda()
 fake = netG(noise, m_items)
 
-print(f"Sanity check of netG: \n"
-      f"noise: {noise.shape} \t"
-      f"netG: {fake.shape} \t" )
+print("Sanity check of netG: \n")
+print("noise: {0} \t".format(noise.shape))
+print("netG: {0} \t".format(fake.shape))
 
 G_losses = [] # Generator losses
 
@@ -249,12 +250,10 @@ for epoch in range(args.epochs):
         optimizerG.step()
                 
         if(j%100 == 0):
-            print(
-                f'[{epoch+1}/{args.epochs}]\t'
-                f'[{j+1}/{len(train_batch)}]\t'
-                f'Loss_G: {errG.item():.6f} \t'
-                f'Train loss: {train_loss.avg}'
-                )
+            print("[{0}/{2}]\t".format(epoch+1, args.epochs))
+            print("[{0}/{2}]\t".format(j+1, len(train_batch)))
+            print("Loss_G: {:.06f} \t".format(errG.item()))
+            print("Train loss: {:.06f}".format(train_loss.avg))
  
         if args.wandb:
             # G_losses.append(errG.item())
@@ -262,14 +261,15 @@ for epoch in range(args.epochs):
             
             if (j % 200 == 0) or ((epoch == args.epochs-1) and (j == len(train_batch)-1)):
                 with torch.no_grad():
-                    input_image = wandb.Image(imgs[0].detach().cpu().permute(1,2,0).numpy(), caption=f"Input image {j+1}_epoch{epoch+1}")
-                    image = wandb.Image(pixels, caption=f"Generator Output {j+1}_epoch{epoch+1}")
+                    input_image = wandb.Image(imgs[0].detach().cpu().permute(1,2,0).numpy(), caption="Input image {0}_epoch{1}".format(j+1, epoch+1))
+                    image = wandb.Image(pixels, caption="Generator Output {0}_epoch{1}".format(j+1, epoch+1))
                     example_images.append(image)
                     input_images.append(input_image)
                     wandb.log({'Generator Images': example_images, 'Input images': input_images})
                 
     if(epoch%5 == 0):
-        torch.save(netG, os.path.join(log_dir, f'netG_{epoch}_negLoss{args.nega_loss}_{args.nega_value}_model.pth'))
+        model_name = "netG_{0}_NegLoss{1}_{2}_model.pth".format(epoch, args.nega_loss, args.nega_value)    
+        torch.save(netG, os.path.join(log_dir, model_name))
         # torch.save(netD, os.path.join(log_dir, f'netD_{epoch}_negLoss{args.nega_loss}_model.pth'))
         # torch.save(m_items, os.path.join(log_dir, f'{epoch}_m_items.pt')) 
     scheduler.step()
@@ -279,8 +279,9 @@ for epoch in range(args.epochs):
     print('Loss: Reconstruction {:.6f}'.format(loss_pixels.item()))
     print('----------------------------------------')
     print(f'Train loss avg: {train_loss.avg}')
-    
-torch.save(netG, os.path.join(log_dir, f'netG_{epoch}_negLoss{args.nega_loss}_{args.nega_value}_model.pth'))
+
+model_name = "netG_{0}_NegLoss{1}_{2}_model.pth".format(epoch, args.nega_loss, args.nega_value)    
+torch.save(netG, os.path.join(log_dir, model_name))
 # torch.save(netD, os.path.join(log_dir, f'netD_{epoch}_negLoss{args.nega_loss}_model.pth'))
 # torch.save(m_items, os.path.join(log_dir, f'{epoch}_m_items.pt')) 
 print('Training is finished')

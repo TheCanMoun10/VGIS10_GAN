@@ -59,7 +59,7 @@ parser.add_argument('--nega_value', type=float, default=0.1, help='Value of the 
 args = parser.parse_args()
 
 today = datetime.datetime.today()
-timestring = f"{today.year}{today.month}{today.day}" + "{:02d}{:02d}".format(today.hour, today.minute) #format YYYYMMDDHHMM
+timestring = "{0}{1}{2}".format(today.year,today.month,today.day) # + "{:02d}{:02d}".format(today.hour, today.minute) #format YYYYMMDDHHMM
 if args.img_norm == "dyn_norm":
     norm = "Dynamic normalization [0, 1]"
 else:
@@ -134,8 +134,9 @@ feature_distance_list = {}
 
 hourminute = '{:02d}{:02d}'.format(today.hour, today.minute)
 log_dir = os.path.join('./evals', args.dataset_type, args.img_norm)
+folder_name = "Test{0}-NegaLoss{1}_ImgNorm{2}".format(args.test_number, args.nega_value, args.img_norm)
 # image_folder = os.path.join(log_dir, f'Test{args.test_number}-NegaLoss{args.nega_value}')
-image_folder = os.path.join(log_dir, f'Test{args.test_number}-PerfectReconstructionMNADnorm')
+image_folder = os.path.join(log_dir, folder_name)
 
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
@@ -190,8 +191,8 @@ for k,(imgs) in enumerate(test_batch):
             # pixels_mse = outputs[0].detach().cpu().permute(1,2,0).numpy()
             np.rot90(pixels, k=0, axes=(1,0))
             with torch.no_grad():
-                input_image = wandb.Image(imgs[0].detach().cpu().permute(1,2,0).numpy(), caption=f"Input image {k}")
-                image = wandb.Image(pixels, caption=f"Reconstructed Image {k}")
+                input_image = wandb.Image(imgs[0].detach().cpu().permute(1,2,0).numpy(), caption="Input image {0}".format(k))
+                image = wandb.Image(pixels, caption="Reconstructed Image {0}".format(k))
                 example_images.append(image)
                 input_images.append(input_image)
                 wandb.log({'Reconstructed Images': example_images, 'Input images': input_images})
