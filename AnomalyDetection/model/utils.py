@@ -18,6 +18,7 @@ def np_load_frame(filename, resize_height, resize_width, img_norm, dtype=np.floa
     :param resize_width: resized width
     :return: numpy.ndarray
     """
+    # print("lalala")
     image_decoded = cv2.imread(filename)
     image_decoded = cv2.cvtColor(image_decoded, cv2.COLOR_BGR2RGB)
     image_resized = cv2.resize(image_decoded, (resize_width, resize_height))

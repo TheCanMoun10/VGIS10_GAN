@@ -152,6 +152,7 @@ for video in sorted(videos_list):
     psnr_list[video_name] = []
     feature_distance_list[video_name] = []
 
+# print("lalala")
 label_length = 0
 video_num = 0
 label_length += videos[videos_list[video_num].split('/')[-1]]['length']

@@ -223,7 +223,7 @@ for epoch in range(args.epochs):
         imgs = Variable(imgs).cuda()
         g_output = netG.forward(imgs, m_items, True)
         optimizerG.zero_grad()
-        
+        # print("lalala")
         if j % 200 == 0:
             if args.img_norm == "dyn_norm":
                 vutils.save_image(imgs[0], os.path.join(image_folder, '%03d_%03d_real_sample_epoch.png' % (epoch+1, j)))
