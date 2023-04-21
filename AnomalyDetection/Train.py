@@ -19,7 +19,7 @@ import math
 from collections import OrderedDict
 import copy
 import time
-from model.utils import DataLoader
+from modelutils import DataLoader
 from sklearn.metrics import roc_auc_score
 from utils import *
 import random

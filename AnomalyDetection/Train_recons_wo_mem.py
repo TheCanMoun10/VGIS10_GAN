@@ -22,8 +22,8 @@ import time
 # import model.reconstruction_wo_memory
 # import model.DataLoader
 # from model.utils import DataLoader
-from model.DataLoader import DataLoader
-from model.reconstruction_wo_memory import *
+from modelutils import DataLoader
+from reconstruction_wo_memory import *
 from sklearn.metrics import roc_auc_score
 from utils import *
 import random
