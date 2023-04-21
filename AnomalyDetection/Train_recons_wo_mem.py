@@ -19,7 +19,7 @@ import math
 from collections import OrderedDict
 import copy
 import time
-from model.utils import DataLoader, gaussian
+from model.utils import DataLoader
 from model.reconstruction_wo_memory import *
 from sklearn.metrics import roc_auc_score
 from utils import *
@@ -70,7 +70,6 @@ parser.add_argument('--dataset_path', type=str, default='./datasets/', help='dir
 parser.add_argument('--exp_dir', type=str, default='log', help='directory of log')
 parser.add_argument('--nega_loss', action='store_true', help='Apply negative loss to model')
 parser.add_argument('--nega_value', type=float, default=0.02, help='Value to degrade loss')
-parser.add_argument('--train', action='store_true', help='Initialize training')
 parser.add_argument('--loss', type=str, default="MSE", help='Define the type of loss used: cross, L1, L2 (MSE)')
 parser.add_argument('--img_norm', type=str, default='mnad_norm', help='Define image normalization for dataloader: mnad_norm [-1, 1], dyn_norm [0, 1]')
 parser.add_argument('--wandb', action='store_true', help='Use wandb to log and visualize network training')
@@ -83,6 +82,7 @@ parser.add_argument('--crop', type=str, default='none', help='Apply random crop 
 parser.add_argument('--crop_factor', type=int, default=4, help='Factor with which to crop images. height // crop_factor.')
 parser.add_argument('--p_val', type=float, default=0.5, help='Probability with which to apply the transforms')
 parser.add_argument('--normalize', type=bool, default=False, help='Normalize tensors')
+parser.add_argument('--test_number', type=int, default=1, help='For testing porpuses, specifies the test number.')
 
 
 args = parser.parse_args()
@@ -91,27 +91,26 @@ today = datetime.datetime.today()
 timestring = f"{today.year}{today.month}{today.day}" + "{:02d}{:02d}".format(today.hour, today.minute) #format YYYYMMDDHHMM
 if args.img_norm == "dyn_norm":
     norm = "Dynamic normalization [0, 1]"
-    args.normalize = False
 else:
     norm = "MNAD normalization [-1, 1]"
 
 if args.wandb:    
-    wandb.init(project="VGIS10_MNADrc",
+    wandb.init(project="VGIS10_AnomalyGeneration",
             
             config={
-                "learning_rate": args.lr,
-                "timestamp" : timestring,
-                "architecture" : args.model,
-                "dataset": args.dataset_type,
-                "epochs" : args.epochs,
-                "batch size" : args.batch_size,
-                "negative loss" : args.nega_loss,
-                "Train" : args.train,
+                "Learning_rate": args.lr,
+                "Timestamp" : timestring,
+                "Architecture" : args.model,
+                "Dataset": args.dataset_type,
+                "Epochs" : args.epochs,
+                "Batch size" : args.batch_size,
+                "Negative loss" : args.nega_loss,
+                "Negative loss value" : args.nega_value,
                 "Image normalization" : norm,
-                "Loss" : args.loss
+                "Loss" : args.loss,
+                # "Test " : "Perfect reconstruction"
                 },
-                name="{0}_{1}_batch{2}_{3}_epochs{4}_lr{5}_{6}".format(args.mode, args.dataset_type, args.batch_size, args.epochs, args.lr, args.img_norm)
-            
+                name="{0}_{1}_batch{2}_{3}_epochs{4}_lr{5}_{6}".format(args.model, args.dataset_type, args.batch_size, args.loss, args.epochs, args.lr, args.img_norm)
             )
 
 torch.manual_seed(2020)
@@ -189,9 +188,14 @@ if args.wandb:
 
 # Report the training process
 hourminute = '{:02d}{:02d}'.format(today.hour, today.minute)
-log_dir = os.path.join('./exp', args.dataset_type, "{0}_lr{1}_{2}".format(args.exp_dir, args.lr, timestring), hourminute, f'{args.img_norm}')
+# log_dir = os.path.join('./exp', args.dataset_type, f"Test{args.test_number}-NegaLoss{args.nega_value}") # Experiment name
+log_dir = os.path.join('./exp', args.dataset_type, f"Test{args.test_number}-PerfectReconstructionMNADNorm") # Experiment name
+image_folder = os.path.join(log_dir, 'images')
+
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
+if not os.path.exists(image_folder):
+    os.makedirs(image_folder)
 
 # Training
 best_test = float("inf")
@@ -220,17 +224,19 @@ for epoch in range(args.epochs):
         g_output = netG.forward(imgs, m_items, True)
         optimizerG.zero_grad()
         
-        if j % 478 == 0:
-            vutils.save_image(imgs[0], os.path.join(log_dir, '%03d_real_sample_epoch.png' % (epoch)), normalize=True)
-            vutils.save_image(g_output[0], os.path.join(log_dir, '%03d_fake_sample_epoch.png' % (epoch)), normalize=True)
+        if j % 200 == 0:
+            if args.img_norm == "dyn_norm":
+                vutils.save_image(imgs[0], os.path.join(image_folder, '%03d_%03d_real_sample_epoch.png' % (epoch+1, j)))
+                vutils.save_image(g_output[0], os.path.join(image_folder, '%03d_%03d_fake_sample_epoch.png' % (epoch+1, j)))
+            else:
+                vutils.save_image(imgs[0], os.path.join(image_folder, '%03d_%03d_real_sample_epoch.png' % (epoch+1, j)), normalize=True)
+                vutils.save_image(g_output[0], os.path.join(image_folder, '%03d_%03d_fake_sample_epoch.png' % (epoch+1, j)), normalize=True)
 
         ##### TRAINING GENERATOR #####:
         loss_pixels = torch.mean(loss_func(g_output, imgs))
-        loss = loss_pixels
+        loss = 0.5*loss_pixels
         if args.nega_loss:
             loss = -args.nega_value*loss
-        else: 
-            loss = loss
         train_loss.update(loss.item(), imgs.size(0))
             
         errG = loss
@@ -244,26 +250,26 @@ for epoch in range(args.epochs):
                 
         if(j%100 == 0):
             print(
-                f'[{epoch}/{args.epochs}]\t'
+                f'[{epoch+1}/{args.epochs}]\t'
                 f'[{j+1}/{len(train_batch)}]\t'
-                f'Loss_G: {errG.item():.4f} \t'
+                f'Loss_G: {errG.item():.6f} \t'
                 f'Train loss: {train_loss.avg}'
                 )
  
         if args.wandb:
-            G_losses.append(errG.item())
-            wandb.log({'Loss_G' : G_losses, 'Train_loss_average' : train_loss.avg})
+            # G_losses.append(errG.item())
+            wandb.log({'Loss_G' : errG.item(), 'Train_loss_average' : train_loss.avg})
             
-            if (j % 200 == 0) or ((epoch == args.epochs-1) and (i == len(train_batch)-1)):
+            if (j % 200 == 0) or ((epoch == args.epochs-1) and (j == len(train_batch)-1)):
                 with torch.no_grad():
-                    input_image = wandb.Image(imgs[0].detach().cpu().permute(1,2,0).numpy(), caption="Input image")
-                    image = wandb.Image(pixels, caption=f"Generated anomaly_{j+1}_epoch{epoch+1}")
+                    input_image = wandb.Image(imgs[0].detach().cpu().permute(1,2,0).numpy(), caption=f"Input image {j+1}_epoch{epoch+1}")
+                    image = wandb.Image(pixels, caption=f"Generator Output {j+1}_epoch{epoch+1}")
                     example_images.append(image)
                     input_images.append(input_image)
                     wandb.log({'Generator Images': example_images, 'Input images': input_images})
                 
     if(epoch%5 == 0):
-        torch.save(netG, os.path.join(log_dir, f'netG_{epoch}_negLoss{args.nega_loss}_model.pth'))
+        torch.save(netG, os.path.join(log_dir, f'netG_{epoch}_negLoss{args.nega_loss}_{args.nega_value}_model.pth'))
         # torch.save(netD, os.path.join(log_dir, f'netD_{epoch}_negLoss{args.nega_loss}_model.pth'))
         # torch.save(m_items, os.path.join(log_dir, f'{epoch}_m_items.pt')) 
     scheduler.step()
@@ -274,7 +280,7 @@ for epoch in range(args.epochs):
     print('----------------------------------------')
     print(f'Train loss avg: {train_loss.avg}')
     
-torch.save(netG, os.path.join(log_dir, f'netG_{epoch}_negLoss{args.nega_loss}_model.pth'))
+torch.save(netG, os.path.join(log_dir, f'netG_{epoch}_negLoss{args.nega_loss}_{args.nega_value}_model.pth'))
 # torch.save(netD, os.path.join(log_dir, f'netD_{epoch}_negLoss{args.nega_loss}_model.pth'))
 # torch.save(m_items, os.path.join(log_dir, f'{epoch}_m_items.pt')) 
 print('Training is finished')
