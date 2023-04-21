@@ -35,7 +35,6 @@ def normalize_img(img):
     return img_re
 
 def point_score(outputs, imgs):
-    
     loss_func_mse = nn.MSELoss(reduction='none')
     error = loss_func_mse((outputs[0]+1)/2,(imgs[0]+1)/2)
     normal = (1-torch.exp(-error))

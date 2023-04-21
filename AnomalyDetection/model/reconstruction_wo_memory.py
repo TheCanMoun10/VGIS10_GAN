@@ -133,7 +133,7 @@ class convAE(torch.nn.Module):
         self.memory = Memory(memory_size,feature_dim, key_dim, temp_update, temp_gather)
        
 
-    def forward(self, x, keys,train=True):
+    def forward(self, x, keys, train=True):
 
         fea, skip1, skip2, skip3 = self.encoder(x)
         if train:

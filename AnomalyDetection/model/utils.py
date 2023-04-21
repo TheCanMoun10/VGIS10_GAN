@@ -19,6 +19,7 @@ def np_load_frame(filename, resize_height, resize_width, img_norm, dtype=np.floa
     :return: numpy.ndarray
     """
     image_decoded = cv2.imread(filename)
+    image_decoded = cv2.cvtColor(image_decoded, cv2.COLOR_BGR2RGB)
     image_resized = cv2.resize(image_decoded, (resize_width, resize_height))
     image_resized = image_resized.astype(dtype=dtype)
     if img_norm == "dyn_norm":
@@ -29,7 +30,7 @@ def np_load_frame(filename, resize_height, resize_width, img_norm, dtype=np.floa
 
 
 class DataLoader(data.Dataset):
-    def __init__(self, video_folder, transform, resize_height, resize_width, time_step=4, num_pred=1, img_norm="old_norm", dtype=np.float32):
+    def __init__(self, video_folder, transform, resize_height, resize_width, time_step=4, num_pred=1, img_norm="mnad_norm", dtype=np.float32):
         self.dir = video_folder
         self.transform = transform
         self.videos = OrderedDict()
