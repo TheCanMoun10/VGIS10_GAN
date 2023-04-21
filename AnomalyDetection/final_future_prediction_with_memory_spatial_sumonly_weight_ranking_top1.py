@@ -4,7 +4,7 @@ import sys
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .memory_final_spatial_sumonly_weight_ranking_top1 import *
+from memory_final_spatial_sumonly_weight_ranking_top1 import *
 
 class Encoder(torch.nn.Module):
     def __init__(self, t_length = 5, n_channel =3):

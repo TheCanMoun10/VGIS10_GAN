@@ -4,7 +4,7 @@ import sys
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .Memory import *
+from Memory import *
 
 class Encoder(torch.nn.Module):
     def __init__(self, t_length = 2, n_channel =3):

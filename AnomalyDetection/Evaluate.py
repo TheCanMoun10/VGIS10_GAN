@@ -20,8 +20,8 @@ from collections import OrderedDict
 import copy
 import time
 from modelutils import DataLoader
-from model.final_future_prediction_with_memory_spatial_sumonly_weight_ranking_top1 import *
-from model.Reconstruction import *
+from final_future_prediction_with_memory_spatial_sumonly_weight_ranking_top1 import *
+from Reconstruction import *
 from sklearn.metrics import roc_auc_score
 from utils import *
 import random
