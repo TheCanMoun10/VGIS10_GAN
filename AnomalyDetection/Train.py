@@ -91,10 +91,10 @@ test_batch = data.DataLoader(test_dataset, batch_size = args.test_batch_size,
 # Model setting
 assert args.method == 'pred' or args.method == 'recon', 'Wrong task name'
 if args.method == 'pred':
-    from model.final_future_prediction_with_memory_spatial_sumonly_weight_ranking_top1 import *
+    from final_future_prediction_with_memory_spatial_sumonly_weight_ranking_top1 import *
     model = convAE(args.c, args.t_length, args.msize, args.fdim, args.mdim)
 else:
-    from model.Reconstruction import *
+    from Reconstruction import *
     model = convAE(args.c, memory_size = args.msize, feature_dim = args.fdim, key_dim = args.mdim)
 params_encoder =  list(model.encoder.parameters()) 
 params_decoder = list(model.decoder.parameters())

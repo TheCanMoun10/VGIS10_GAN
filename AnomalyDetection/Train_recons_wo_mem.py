@@ -72,7 +72,7 @@ parser.add_argument('--dataset_type', type=str, default='ped2', help='type of da
 parser.add_argument('--dataset_path', type=str, default='./datasets/', help='directory of data')
 parser.add_argument('--exp_dir', type=str, default='log', help='directory of log')
 parser.add_argument('--nega_loss', action='store_true', help='Apply negative loss to model')
-parser.add_argument('--nega_value', type=float, default=0.02, help='Value to degrade loss')
+parser.add_argument('--nega_value', type=float, default=0.1, help='Value to degrade loss')
 parser.add_argument('--loss', type=str, default="MSE", help='Define the type of loss used: cross, L1, L2 (MSE)')
 parser.add_argument('--img_norm', type=str, default='mnad_norm', help='Define image normalization for dataloader: mnad_norm [-1, 1], dyn_norm [0, 1]')
 parser.add_argument('--wandb', action='store_true', help='Use wandb to log and visualize network training')
@@ -168,8 +168,8 @@ test_batch = data.DataLoader(test_dataset, batch_size = args.test_batch_size,
 
 
 # Model setting
-if args.loss == "L1":
-    loss_func = nn.L1Loss(reduction='none') #L1 loss
+if args.loss == "KL":
+    loss_func = nn.KLDivLoss(reduction='batchmean') #KL loss
 elif args.loss == "L2" or args.loss == 'MSE':
     loss_func = nn.MSELoss(reduction='none') #L2 loss
 elif args.loss == 'BCE':
@@ -178,22 +178,35 @@ else:
     loss_func = nn.CrossEntropyLoss(reduction='none')
 
 # Setup generator and discriminator:
-netG = convAE(args.c, args.t_length, args.msize, args.fdim, args.mdim)
+normG = convAE(args.c, args.t_length, args.msize, args.fdim, args.mdim) # normal generator.
+abnormG = convAE(args.c, args.t_length, args.msize, args.fdim, args.mdim) # Abnormal generator.
 
-params_encoder =  list(netG.encoder.parameters()) 
-params_decoder = list(netG.decoder.parameters())
+params_encoder =  list(normG.encoder.parameters()) 
+params_decoder = list(normG.decoder.parameters())
 paramsG = params_encoder + params_decoder
-optimizerG = torch.optim.Adam(paramsG, lr = args.lr)
-scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizerG,T_max =args.epochs)
-netG.cuda()
+norm_optimizerG = torch.optim.Adam(paramsG, lr = args.lr)
+scheduler = optim.lr_scheduler.CosineAnnealingLR(norm_optimizerG,T_max =args.epochs)
+
+abnorm_params_encoder = list(abnormG.encoder.parameters())
+abnorm_params_decoder = list(abnormG.decoder.parameters())
+abnorm_paramsG = abnorm_params_encoder + abnorm_params_decoder
+abnorm_optimizerG = torch.optim.Adam(abnorm_paramsG, lr=args.lr)
+abnorm_scheduler = optim.lr_scheduler.CosineAnnealingLR(abnorm_optimizerG, T_max=args.epochs)
+
+normG.cuda()
+abnormG.cuda()
 if args.wandb:
-    wandb.watch(netG)
+    wandb.watch(normG)
+    wandb.watch(abnormG)
 
 # Report the training process
 hourminute = '{:02d}{:02d}'.format(today.hour, today.minute)
-folder_name = "Test{0}-NegaLoss{1}_ImgNorm{2}".format(args.test_number, args.nega_value, args.img_norm)
+if args.nega_loss:
+    folder_name = "Test{0}-NegaLoss{1}".format(args.test_number, args.nega_value)
+else:
+    folder_name = "Test{0}-loss{1}-PerfectReconstruction".format(args.test_number, args.loss)
 # log_dir = os.path.join('./exp', args.dataset_type, f"Test{args.test_number}-NegaLoss{args.nega_value}") # Experiment name
-log_dir = os.path.join('./exp', args.dataset_type, folder_name) # Experiment name
+log_dir = os.path.join('./exp', args.dataset_type, args.img_norm, folder_name) # Experiment name
 image_folder = os.path.join(log_dir, 'images')
 
 if not os.path.exists(log_dir):
@@ -207,72 +220,95 @@ m_items = F.normalize(torch.rand((args.msize, args.mdim), dtype=torch.float), di
 
 # Sanity check of generator and discriminator:
 noise = torch.randn(args.batch_size, args.c ,args.h, args.w).cuda()
-fake = netG(noise, m_items)
+fake = normG(noise, m_items)
+fake_abn = abnormG(noise, m_items)
 
-print("Sanity check of netG: \n")
+print("Sanity check of normG: \t")
 print("noise: {0} \t".format(noise.shape))
-print("netG: {0} \t".format(fake.shape))
+print("normG: {0} \t".format(fake.shape))
+print("abnormG: {0} \t".format(fake_abn.shape))
 
 G_losses = [] # Generator losses
 
 for epoch in range(args.epochs):
     labels_list = []
-    example_images = []
+    normal_images = []
+    abnormal_images = []
     input_images = []
-    netG.train()
+    normG.train()
     start = time.time()
     train_loss = AverageMeter()
+    abn_train_loss = AverageMeter()
     
     for j,(imgs) in enumerate(train_batch):
         imgs = Variable(imgs).cuda()
-        g_output = netG.forward(imgs, m_items, True)
-        optimizerG.zero_grad()
-        # print("lalala")
-        if j % 200 == 0:
+        g_output = normG.forward(imgs, m_items, True)
+        g_output_abn = abnormG.forward(imgs, m_items, True)
+        norm_optimizerG.zero_grad()
+        abnorm_optimizerG.zero_grad()
+
+        if j % 319 == 0:
             if args.img_norm == "dyn_norm":
                 vutils.save_image(imgs[0], os.path.join(image_folder, '%03d_%03d_real_sample_epoch.png' % (epoch+1, j)))
-                vutils.save_image(g_output[0], os.path.join(image_folder, '%03d_%03d_fake_sample_epoch.png' % (epoch+1, j)))
+                vutils.save_image(g_output[0], os.path.join(image_folder, '%03d_%03d_normal_sample_epoch.png' % (epoch+1, j)))
+                vutils.save_image(g_output_abn[0], os.path.join(image_folder, '%03d_%03d_abnormal_sample_epoch.png' % (epoch+1, j)))
             else:
                 vutils.save_image(imgs[0], os.path.join(image_folder, '%03d_%03d_real_sample_epoch.png' % (epoch+1, j)), normalize=True)
-                vutils.save_image(g_output[0], os.path.join(image_folder, '%03d_%03d_fake_sample_epoch.png' % (epoch+1, j)), normalize=True)
+                vutils.save_image(g_output[0], os.path.join(image_folder, '%03d_%03d_normal_sample_epoch.png' % (epoch+1, j)), normalize=True)
+                vutils.save_image(g_output_abn[0], os.path.join(image_folder, '%03d_%03d_abnormal_sample_epoch.png' % (epoch+1, j)), normalize=True)
 
         ##### TRAINING GENERATOR #####:
         loss_pixels = torch.mean(loss_func(g_output, imgs))
+        abn_loss_pixels = torch.mean(loss_func(g_output_abn, imgs))
         loss = loss_pixels
+        abnormal_loss = abn_loss_pixels
+        
         if args.nega_loss:
-            loss = -args.nega_value*loss
+            abnormal_loss = -args.nega_value*abnormal_loss
+        
         train_loss.update(loss.item(), imgs.size(0))
             
         errG = loss
+        errG_abn = abnormal_loss
         
         if args.wandb:
             pixels = g_output[0].detach().cpu().permute(1,2,0).numpy()
             np.rot90(pixels, k=0, axes=(1,0))
+            
+            abn_pixels = g_output_abn[0].detach().cpu().permute(1,2,0).numpy()
+            np.rot90(abn_pixels, k=0, axes=(1,0))
         
         loss.backward(retain_graph=True)
-        optimizerG.step()
+        abnormal_loss.backward(retain_graph=True)
+        
+        norm_optimizerG.step()
+        abnorm_optimizerG.step()
                 
-        if(j%100 == 0):
-            print("[{0}/{2}]\t".format(epoch+1, args.epochs))
-            print("[{0}/{2}]\t".format(j+1, len(train_batch)))
-            print("Loss_G: {:.06f} \t".format(errG.item()))
-            print("Train loss: {:.06f}".format(train_loss.avg))
+        if(j%319 == 0):
+            print("Epoch: [{0}/{1}] \t Step: [{2} / {3}] \t Loss_G: {4:.06f} \t Train loss: {5:.06f}".format(epoch+1, args.epochs, j+1, len(train_batch), errG.item(), train_loss.avg))
  
         if args.wandb:
             # G_losses.append(errG.item())
             wandb.log({'Loss_G' : errG.item(), 'Train_loss_average' : train_loss.avg})
             
-            if (j % 200 == 0) or ((epoch == args.epochs-1) and (j == len(train_batch)-1)):
+            if (j % 319 == 0) or ((epoch == args.epochs-1) and (j == len(train_batch)-1)):
                 with torch.no_grad():
                     input_image = wandb.Image(imgs[0].detach().cpu().permute(1,2,0).numpy(), caption="Input image {0}_epoch{1}".format(j+1, epoch+1))
-                    image = wandb.Image(pixels, caption="Generator Output {0}_epoch{1}".format(j+1, epoch+1))
-                    example_images.append(image)
+                    normal_image = wandb.Image(pixels, caption="Generator Normal Output {0}_epoch{1}".format(j+1, epoch+1))
+                    abnormal_image = wandb.Image(abn_pixels, caption="Generator Abnormal Output {0}_epoch{1}".format(j+1, epoch+1))
+                    normal_images.append(normal_image)
+                    abnormal_images.append(abnormal_image)
                     input_images.append(input_image)
-                    wandb.log({'Generator Images': example_images, 'Input images': input_images})
+                    wandb.log({'Generator Normal Images': normal_images, 'Generator Abnormal images': abnormal_images,'Input images': input_images})
                 
     if(epoch%5 == 0):
-        model_name = "netG_{0}_NegLoss{1}_{2}_model.pth".format(epoch, args.nega_loss, args.nega_value)    
-        torch.save(netG, os.path.join(log_dir, model_name))
+        model_name = "model_{0}_NegLoss{1}_{2}_model.pth".format(epoch, args.nega_loss, args.nega_value)    
+        torch.save({
+            'normG_state_dict': normG.state_dict(),
+            'abnormG_state_dict': abnormG.state_dict(),
+            'norm_optimizerG': norm_optimizerG.state_dict(),
+            'abnorm_optimizerG': abnorm_optimizerG.state_dict(),
+            }, os.path.join(log_dir, model_name))
         # torch.save(netD, os.path.join(log_dir, f'netD_{epoch}_negLoss{args.nega_loss}_model.pth'))
         # torch.save(m_items, os.path.join(log_dir, f'{epoch}_m_items.pt')) 
     scheduler.step()
@@ -283,8 +319,13 @@ for epoch in range(args.epochs):
     print('----------------------------------------')
     print('Train loss avg: {:.06f}'.format(train_loss.avg))
 
-model_name = "netG_{0}_NegLoss{1}_{2}_model.pth".format(epoch, args.nega_loss, args.nega_value)    
-torch.save(netG, os.path.join(log_dir, model_name))
+model_name = "model_{0}_NegLoss{1}_{2}_model.pth".format(epoch, args.nega_loss, args.nega_value)    
+torch.save({
+            'normG_state_dict': normG.state_dict(),
+            'abnormG_state_dict': abnormG.state_dict(),
+            'norm_optimizerG': norm_optimizerG.state_dict(),
+            'abnorm_optimizerG': abnorm_optimizerG.state_dict(),
+            }, os.path.join(log_dir, model_name))
 # torch.save(netD, os.path.join(log_dir, f'netD_{epoch}_negLoss{args.nega_loss}_model.pth'))
 # torch.save(m_items, os.path.join(log_dir, f'{epoch}_m_items.pt')) 
 print('Training is finished')
