@@ -202,7 +202,7 @@ if args.wandb:
 # Report the training process
 hourminute = '{:02d}{:02d}'.format(today.hour, today.minute)
 if args.nega_loss:
-    folder_name = "Test{0}-NegaLoss{1}".format(args.test_number, args.nega_value)
+    folder_name = "Test{0}--loss{2}-NegaLoss{1}".format(args.test_number, args.nega_value, args.loss)
 else:
     folder_name = "Test{0}-loss{1}-PerfectReconstruction".format(args.test_number, args.loss)
 # log_dir = os.path.join('./exp', args.dataset_type, f"Test{args.test_number}-NegaLoss{args.nega_value}") # Experiment name
@@ -247,7 +247,7 @@ for epoch in range(args.epochs):
         norm_optimizerG.zero_grad()
         abnorm_optimizerG.zero_grad()
 
-        if j % 319 == 0:
+        if j % 500 == 0:
             if args.img_norm == "dyn_norm":
                 vutils.save_image(imgs[0], os.path.join(image_folder, '%03d_%03d_real_sample_epoch.png' % (epoch+1, j)))
                 vutils.save_image(g_output[0], os.path.join(image_folder, '%03d_%03d_normal_sample_epoch.png' % (epoch+1, j)))
@@ -258,15 +258,19 @@ for epoch in range(args.epochs):
                 vutils.save_image(g_output_abn[0], os.path.join(image_folder, '%03d_%03d_abnormal_sample_epoch.png' % (epoch+1, j)), normalize=True)
 
         ##### TRAINING GENERATOR #####:
-        loss_pixels = torch.mean(loss_func(g_output, imgs))
-        abn_loss_pixels = torch.mean(loss_func(g_output_abn, imgs))
+        # loss_pixels = torch.mean(loss_func(g_output, imgs))
+        loss_pixels = F.mse_loss(g_output, imgs) # reconstruction loss
+        
+        if args.nega_loss:
+            abn_loss_pixels = - args.nega_value*(F.mse_loss(g_output_abn, imgs) + loss_func(g_output_abn, imgs)) # MSE-loss + KL loss
+        else:
+            abn_loss_pixels = F.mse_loss(g_output_abn, imgs) + loss_func(g_output_abn, imgs) # MSE-loss + KL loss
+        
         loss = loss_pixels
         abnormal_loss = abn_loss_pixels
         
-        if args.nega_loss:
-            abnormal_loss = -args.nega_value*abnormal_loss
-        
         train_loss.update(loss.item(), imgs.size(0))
+        abn_train_loss.update(abnormal_loss.item(), imgs.size(0))
             
         errG = loss
         errG_abn = abnormal_loss
@@ -284,14 +288,14 @@ for epoch in range(args.epochs):
         norm_optimizerG.step()
         abnorm_optimizerG.step()
                 
-        if(j%319 == 0):
-            print("Epoch: [{0}/{1}] \t Step: [{2} / {3}] \t Loss_G: {4:.06f} \t Train loss: {5:.06f}".format(epoch+1, args.epochs, j+1, len(train_batch), errG.item(), train_loss.avg))
+        if(j%500 == 0):
+            print("Epoch: [{0}/{1}] \t Step: [{2} / {3}] \t Loss_G: {4:.06f} \t Train loss: {5:.06f} \t Loss_Gabn: {6:.06f} \t Train loss abn: {7:.06f}".format(epoch+1, args.epochs, j+1, len(train_batch), errG.item(), train_loss.avg, errG_abn.item(), abn_train_loss.avg))
  
         if args.wandb:
             # G_losses.append(errG.item())
-            wandb.log({'Loss_G' : errG.item(), 'Train_loss_average' : train_loss.avg})
+            # wandb.log({'Loss_G' : errG.item(), 'Train_loss_average' : train_loss.avg, ''})
             
-            if (j % 319 == 0) or ((epoch == args.epochs-1) and (j == len(train_batch)-1)):
+            if (j % 500 == 0) or ((epoch == args.epochs-1) and (j == len(train_batch)-1)):
                 with torch.no_grad():
                     input_image = wandb.Image(imgs[0].detach().cpu().permute(1,2,0).numpy(), caption="Input image {0}_epoch{1}".format(j+1, epoch+1))
                     normal_image = wandb.Image(pixels, caption="Generator Normal Output {0}_epoch{1}".format(j+1, epoch+1))
