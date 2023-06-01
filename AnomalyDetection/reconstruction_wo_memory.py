@@ -217,4 +217,3 @@ class DCDis(nn.Module):
         validity = self.adv_layer(out)
 
         return validity
-        

@@ -31,6 +31,7 @@ import wandb
 import argparse
 import datetime
 import torchvision.utils as vutils
+from losses import *
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -60,7 +61,7 @@ parser.add_argument('--loss_separate', type=float, default=0.01, help='weight of
 parser.add_argument('--h', type=int, default=256, help='height of input images')
 parser.add_argument('--w', type=int, default=256, help='width of input images')
 parser.add_argument('--c', type=int, default=3, help='channel of input images')
-parser.add_argument('--lr', type=float, default=2e-5, help='initial learning rate')
+parser.add_argument('--lr', type=float, default=0.0002, help='initial learning rate')
 parser.add_argument('--t_length', type=int, default=2, help='length of the frame sequences')
 parser.add_argument('--fdim', type=int, default=512, help='channel dimension of the features')
 parser.add_argument('--mdim', type=int, default=512, help='channel dimension of the memory items')
@@ -77,7 +78,11 @@ parser.add_argument('--loss', type=str, default="BCE", help='Define the type of 
 parser.add_argument('--img_norm', type=str, default='mnad_norm', help='Define image normalization for dataloader: mnad_norm [-1, 1], dyn_norm [0, 1]')
 parser.add_argument('--wandb', action='store_true', help='Use wandb to log and visualize network training')
 parser.add_argument('--latent_dim', type=int, default=100, help="Dimensionality of latent space." )
-parser.add_argument('--lamda_adv', type=float, default=0.05, help="Weight for adversarial loss." )
+parser.add_argument('--lambda_int', type=float, default=1.0, help="Weight for the intensity loss." )
+parser.add_argument('--l_num', type=int, default=2, help="Exponent for the intensity loss." )
+parser.add_argument('--lambda_grad', type=float, default=1.0, help="Weight for the gradient loss." )
+parser.add_argument('--grad_alpha', type=float, default=1.0, help="Weight for the gradient loss." )
+parser.add_argument('--lambda_adv', type=float, default=0.05, help="Weight for the adversarial loss." )
 
 # Augmentations to dataset:
 parser.add_argument("--transforms", type=str, default='none', help='Applying transforms to dataset')
@@ -196,8 +201,15 @@ elif args.loss == 'BCE':
 else:
     loss_func = nn.CrossEntropyLoss(reduction='none').cuda()
 
-adversarial_loss = nn.BCELoss().cuda()
+lam_int = args.lambda_int*2
+lam_grad = args.lambda_grad*2
+lam_adv = args.lambda_adv
+discriminator_loss = nn.BCELoss().cuda()
 reconstruction_loss = nn.MSELoss().cuda()
+intensity_loss = Intensity_Loss(args.l_num).cuda()
+grad_loss = Gradient_Loss(args.grad_alpha, args.c).cuda()
+adversarial_loss = Adversarial_Loss().cuda()
+
 
 # Setup generator and discriminator:
 if args.model == "convAE":
@@ -216,12 +228,13 @@ if args.model == "convAE":
     print("Sanity check of normG: \t")
     print("noise: {0} \t".format(noise.shape))
     print("normG: {0} \t".format(fake.shape))
-else:
-    netG = DCGen(num_channels=args.c, img_size=args.h, latent_dim=args.latent_dim)
-    netG_optimizer = torch.optim.Adam(netG.parameters(), lr=args.lr, betas=(0.5, 0.999))
+
+netG = DCGen(num_channels=args.c, img_size=args.h, latent_dim=args.latent_dim)
+netG_optimizer = torch.optim.Adam(netG.parameters(), lr=args.lr)
 
 netD = DCDis(num_channels=args.c, img_size=args.h)
-netD_optimizer = torch.optim.Adam(netD.parameters(), lr=args.lr, betas=(0.5, 0.999))
+netD_optimizer = torch.optim.Adam(netD.parameters(), lr=args.lr)
+
 
 netG.apply(weights_init_normal)
 netD.apply(weights_init_normal)
@@ -249,9 +262,12 @@ for epoch in range(args.epochs):
         imgs = Variable(imgs).cuda()
 
         # Noisy sample for generator
-        z = Variable(torch.FloatTensor(np.random.normal(0,1, (imgs.shape[0], args.latent_dim)))).cuda()
-        # Generate image batch:
-        g_output_abn = netG(z)
+        if args.model == "DCGan":
+            z = Variable(torch.FloatTensor(np.random.normal(0,1, (imgs.shape[0], args.latent_dim)))).cuda()
+            # Generate image batch:
+            g_output_abn = netG(z)
+        else:    
+            g_output_abn = netG(imgs)
         
         if j % 476 == 0:
             if args.img_norm == "dyn_norm":
@@ -262,10 +278,12 @@ for epoch in range(args.epochs):
                 vutils.save_image(g_output_abn[0], os.path.join(image_folder, '%03d_%03d_recon_sample_epoch.png' % (epoch+1, j)), normalize=True)
 
         ##### TRAINING GENERATOR #####:
-        # g_adv_loss = torch.mean(adversarial_loss(netD(g_output_abn), imgs))
+        g_adv_loss = adversarial_loss(netD(g_output_abn))
         g_recon_loss = torch.mean(reconstruction_loss(g_output_abn, imgs))
+        g_int_loss = intensity_loss(g_output_abn, imgs)
+        g_grad_loss = grad_loss(g_output_abn, imgs)
         
-        loss_g = g_recon_loss # + args.lambda_adv * g_adv_loss 
+        loss_g = g_recon_loss + lam_adv*g_adv_loss + lam_int*g_int_loss + lam_grad*g_grad_loss
         
         train_loss.update(loss_g.item(), imgs.size(0))
         
@@ -282,7 +300,7 @@ for epoch in range(args.epochs):
         ###### TRAINING DISCRIMINATOR #####
         netD_optimizer.zero_grad()
         
-        d_loss = adversarial_loss(netD(g_output_abn.detach()), netD(imgs))
+        d_loss = discriminator_loss(netD(g_output_abn.detach()), netD(imgs))
         
         d_loss.backward()
         netD_optimizer.step()
@@ -302,7 +320,10 @@ for epoch in range(args.epochs):
                     wandb.log({'Reconstructed images': abnormal_images,'Input images': input_images})
                 
     if(epoch%5 == 0):
-        model_name = "model_{0}_NegLoss{1}_{2}_model.pth".format(epoch, args.nega_loss, args.nega_value)    
+        model_name = "{3}_{0}_NegLoss{1}_{2}_model.pth".format(epoch, args.nega_loss, args.nega_value, args.model)
+        # model_name_dis = "netD_{0}_NegLoss{1}_{2}_model.pth".format(epoch, args.nega_loss, args.nega_value)
+        # torch.save(netG.state_dict(), os.path.join(log_dir, model_name_gen))
+        # torch.save(netD.state_dict(), os.path.join(log_dir, model_name_dis))
         torch.save({
             'netG_state_dict': netG.state_dict(),
             'netD_state_dict': netD.state_dict(),
@@ -318,7 +339,10 @@ for epoch in range(args.epochs):
     print('----------------------------------------')
     print('Train loss avg: {:.06f}'.format(train_loss.avg))
 
-model_name = "model_{0}_NegLoss{1}_{2}_model.pth".format(epoch, args.nega_loss, args.nega_value)    
+model_name = "{3}_{0}_NegLoss{1}_{2}_model.pth".format(epoch, args.nega_loss, args.nega_value, args.model)
+# model_name_dis = "netD_{0}_NegLoss{1}_{2}_model.pth".format(epoch, args.nega_loss, args.nega_value)
+# torch.save(netG.state_dict(), os.path.join(log_dir, model_name_gen))
+# torch.save(netD.state_dict(), os.path.join(log_dir, model_name_dis))
 torch.save({
             'netG_state_dict': netG.state_dict(),
             'netD_state_dict': netD.state_dict(),

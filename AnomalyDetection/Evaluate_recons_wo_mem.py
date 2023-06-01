@@ -33,12 +33,12 @@ import torchvision.utils as vutils
 
 parser = argparse.ArgumentParser(description="MNAD")
 parser.add_argument('--gpus', nargs='+', type=str, help='gpus')
-parser.add_argument('--model', type=str, default="convAE", help='specify model architecture. default: convAE')
+parser.add_argument('--model', type=str, default="DCGan", help='specify model architecture. default: convAE')
 parser.add_argument('--batch_size', type=int, default=4, help='batch size for training')
 parser.add_argument('--test_batch_size', type=int, default=1, help='batch size for test')
-parser.add_argument('--lr', type=float, default=2e-5, help='Learning rate from training of the model')
-parser.add_argument('--h', type=int, default=256, help='height of input images')
-parser.add_argument('--w', type=int, default=256, help='width of input images')
+parser.add_argument('--lr', type=float, default=0.0002, help='Learning rate from training of the model')
+parser.add_argument('--h', type=int, default=128, help='height of input images')
+parser.add_argument('--w', type=int, default=128, help='width of input images')
 parser.add_argument('--c', type=int, default=3, help='channel of input images')
 parser.add_argument('--t_length', type=int, default=2, help='length of the frame sequences')
 parser.add_argument('--fdim', type=int, default=512, help='channel dimension of the features')
@@ -57,7 +57,8 @@ parser.add_argument('--m_items_dir', type=str, help='directory of model')
 parser.add_argument('--test_number', type=int, default=1, help='For testing porpuses, specifies the test number.')
 parser.add_argument('--loss', type=str, default='KL', help='Loss type used in training of the model')
 parser.add_argument('--nega_loss', action='store_true', help='Apply negative loss to model')
-parser.add_argument('--nega_value', type=float, default=0.1, help='Value of the negative loss applied during training.')
+parser.add_argument('--nega_value', type=float, default=0.0, help='Value of the negative loss applied during training.')
+parser.add_argument('--latent_dim', type=int, default=100, help='Latent dimension of the model')
 
 args = parser.parse_args()
 
@@ -73,6 +74,7 @@ if args.wandb:
             
             config={
                 "Image normalization": args.img_norm,
+                "Model": args.model,
                 "Timestamp" : timestring,
                 "Architecture" : args.model,
                 "Dataset": args.dataset_type,
@@ -112,26 +114,8 @@ loss_func_mse = nn.MSELoss(reduction='none')
 
 # Loading the trained model
 checkpoint = torch.load(args.model_dir)
-model = convAE(args.c, args.t_length, args.msize, args.fdim, args.mdim)
-params_encoder =  list(model.encoder.parameters()) 
-params_decoder = list(model.decoder.parameters())
-paramsG = params_encoder + params_decoder
-model_optimizer = torch.optim.Adam(paramsG, lr = args.lr)
-
-abnormal_model = convAE(args.c, args.t_length, args.msize, args.fdim, args.mdim)
-abnorm_params_encoder = list(abnormal_model.encoder.parameters())
-abnorm_params_decoder = list(abnormal_model.decoder.parameters())
-abnorm_paramsG = abnorm_params_encoder + abnorm_params_decoder
-abnorm_model_optimizer = torch.optim.Adam(abnorm_paramsG, lr=args.lr)
-
-model.load_state_dict(checkpoint['normG_state_dict'])
-abnormal_model.load_state_dict(checkpoint['abnormG_state_dict'])
-model_optimizer.load_state_dict(checkpoint['norm_optimizerG'])
-abnorm_model_optimizer.load_state_dict(checkpoint['abnorm_optimizerG'])
-
-model.cuda()
-abnormal_model.cuda()
-m_items = torch.load(args.m_items_dir)
+model_gen = DCGen(args.c, args.h, args.latent_dim).cuda().eval()
+model_gen.load_state_dict(checkpoint)
 
 labels = np.load('./data/frame_labels_'+args.dataset_type+'.npy')
 if args.dataset_type == 'shanghai':
@@ -179,14 +163,9 @@ for video in sorted(videos_list):
     abn_psnr_list[video_name] = []
     feature_distance_list[video_name] = []
 
-# print("lalala")
 label_length = 0
 video_num = 0
 label_length += videos[videos_list[video_num].split('/')[-1]]['length']
-m_items_test = m_items.clone()
-
-model.eval()
-abnormal_model.eval()
 
 for k,(imgs) in enumerate(test_batch):
 
@@ -196,24 +175,22 @@ for k,(imgs) in enumerate(test_batch):
         label_length += videos[videos_list[video_num].split('/')[-1]]['length']
 
     imgs = Variable(imgs).cuda()
-
-    outputs = model.forward(imgs, m_items_test, False)
-    abn_outputs = abnormal_model.forward(imgs, m_items_test, False)
+    imgs_copy = imgs.clone()
+    
+    
+    outputs = model_gen.forward(imgs)
     mse_imgs = torch.mean(loss_func_mse((outputs[0]+1)/2, (imgs[0]+1)/2)).item()
-    mse_abn_imgs = torch.mean(loss_func_mse((abn_outputs[0]+1)/2, (imgs[0]+1)/2)).item()
     
     if args.wandb:
-        wandb.log({'Image MSE' : mse_imgs, 'Abnormal image MSE': mse_abn_imgs})
+        wandb.log({'Image MSE' : mse_imgs})
     
     if k % 1500 == 0:
         if args.img_norm == "dyn_norm":
             vutils.save_image(imgs[0], os.path.join(image_folder, '%03d_real_sample.png' % (k)))
             vutils.save_image(outputs[0], os.path.join(image_folder, '%03d_reconstructed_sample.png' % (k)))
-            vutils.save_image(abn_outputs[0], os.path.join(image_folder, '%03d_abnormal_sample.png' % (k)))
         else:
             vutils.save_image(imgs[0], os.path.join(image_folder, '%03d_real_sample.png' % (k)), normalize=True)
             vutils.save_image(outputs[0], os.path.join(image_folder, '%03d_reconstructed_sample.png' % (k)), normalize=True)
-            vutils.save_image(abn_outputs[0], os.path.join(image_folder, '%03d_abnormal_sample.png' % (k)), normalize=True)
         # vutils.save_image(mse_imgs[0], os.path.join(image_folder, '%03d_mse_sample.png' % (k)), normalize=True)
         
         if args.wandb:
@@ -221,18 +198,14 @@ for k,(imgs) in enumerate(test_batch):
             abnormal_images = []
             input_images = []
             pixels = outputs[0].detach().cpu().permute(1,2,0).numpy()
-            abn_pixels = abn_outputs[0].detach().cpu().permute(1,2,0).numpy()
             # pixels_mse = outputs[0].detach().cpu().permute(1,2,0).numpy()
             np.rot90(pixels, k=0, axes=(1,0))
-            np.rot90(abn_pixels, k=0, axes=(1,0))
             with torch.no_grad():
                 input_image = wandb.Image(imgs[0].detach().cpu().permute(1,2,0).numpy(), caption="Input image {0}".format(k))
                 normal_image = wandb.Image(pixels, caption="Reconstructed Image {0}".format(k))
-                abnormal_image = wandb.Image(abn_pixels, caption="Abnormal image {0}".format(k))
                 example_images.append(normal_image)
-                abnormal_images.append(abnormal_image)
                 input_images.append(input_image)
-                wandb.log({'Reconstructed Images': example_images, 'Abnormal images': abnormal_images, 'Input images': input_images})
+                wandb.log({'Reconstructed Images': example_images, 'Input images': input_images})
         
     # mse_feas = compactness_loss.item()
     
@@ -245,7 +218,6 @@ for k,(imgs) in enumerate(test_batch):
     #     m_items_test = model.memory.update(query, m_items_test, False)
 
     psnr_list[videos_list[video_num].split('/')[-1]].append(psnr(mse_imgs))
-    abn_psnr_list[videos_list[video_num].split('/')[-1]].append(psnr(mse_abn_imgs))
     # feature_distance_list[videos_list[video_num].split('/')[-1]].append(mse_feas)
 
 # Measuring the abnormality score and the AUC
@@ -255,15 +227,10 @@ for video in sorted(videos_list):
     video_name = video.split('/')[-1]
     normal_score_total_list += score_sum(anomaly_score_list(psnr_list[video_name]), 
                                     anomaly_score_list_inv(psnr_list[video_name]), args.alpha)
-    abnormal_score_total_list += score_sum(anomaly_score_list(abn_psnr_list[video_name]), 
-                                    anomaly_score_list_inv(abn_psnr_list[video_name]), args.alpha)
 
 normal_score_total_list = np.asarray(normal_score_total_list)
-abnormal_score_total_list = np.asanyarray(abnormal_score_total_list)
 
 accuracy_of_normals = AUC(normal_score_total_list, np.expand_dims(1-labels_list, 0))
-# accuracy_of_abnormals = AUC(abnormal_score_total_list, np.expand_dims(1-label_length, 0))
 
 print('The result of ', args.dataset_type)
 print('AUC_Normal: ', accuracy_of_normals*100, '%')
-# print('AUC_Abnormal: ', accuracy_of_abnormals*100, '%')
