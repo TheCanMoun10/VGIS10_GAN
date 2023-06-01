@@ -1,0 +1,11 @@
+#!/bin/csh -f
+
+foreach CN (`cat test.sequence`)
+    echo "--------------------"
+    echo "$CN"
+    echo "--------------------"
+    rm -fr dataset/avenue/testing/*
+    cp -r dataset/avenue/testing_all/$CN dataset/avenue/testing/
+    python evaluate.py --dataset=avenue --trained_model=avenue_1000.pth --seq=$CN
+end
+

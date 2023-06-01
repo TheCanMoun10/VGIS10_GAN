@@ -1,0 +1,15 @@
+tensorboard_log/
+*.pytorch
+__pycache__/
+.idea/
+*.pth
+results
+images
+# dataset/avenue
+evals
+wandb
+*.mat
+
+*.png
+*.jpg
+*.zip
