@@ -61,7 +61,7 @@ if args.wandb:
 #     if not os.path.exists(log_dir_abnormal):
 #         os.makedirs(log_dir_abnormal)
 
-log_dir = os.path.join('./images', 'full_network', args.dataset, str(args.iters), 'flow_loss'+str(args.wfl_loss)+"_test2")
+log_dir = os.path.join('./images', args.dataset, str(args.iters), 'flow_loss'+str(args.wfl_loss))
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
     

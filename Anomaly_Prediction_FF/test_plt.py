@@ -1,6 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter1d
+import os
+
+log_dir = os.path.join('./evals', 'avenue', 'classifier-tests', 'flow_loss'+str(1.5))
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
 
 arr_a = [np.array([1.0, 2.2, 3.4, 4.9, 5.12]), np.array([1.1, 5.5, 5.98, 7.34, 9.56]), np.array([1.63, 2.25, 8.93, 4.89, 5.63]), np.array([1.63, 2.25, 8.93, 4.89, 5.63]) ]
 arr_b = [np.array([7.7, 7.98, 8.12, 12.5, 0.0]), np.array([45.0, 23.45, 33.50, 8.0, 9.0]), np.array([0.1, 12.12, 3.89, 13.05, 11.98]), np.array([1.63, 2.25, 8.93, 4.89, 5.63])]
@@ -51,7 +56,7 @@ for i in range(len(arr_a)):
         plt.legend(bbox_to_anchor=(0, 1.02, 1, 0.2), loc="lower left", mode='expand', borderaxespad=0, ncol=4)
 
         fig = plt.gcf()
-        vid_name = 'test_video_' + str(video) + 'curve.png'
+        vid_name = log_dir + '/test_video_' + str(video) + 'curve.png'
         fig.savefig(vid_name)
         plt.show()
                 

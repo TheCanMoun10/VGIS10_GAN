@@ -54,7 +54,7 @@ def val(cfg, model=None, model_classifier = None, flow_loss=0.6):
     psnr_group = []
     classification_group = []
 
-    log_dir = os.path.join('./evals', 'avenue', 'classifier-tests', 'flow_loss'+str(flow_loss)+"_abnormal") # depending on dataset and test change accordingly.
+    log_dir = os.path.join('./evals', args.dataset, 'classifier-tests', 'flow_loss'+str(flow_loss)) # depending on dataset and test change accordingly.
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
 
@@ -235,10 +235,8 @@ def val(cfg, model=None, model_classifier = None, flow_loss=0.6):
         plt.legend(bbox_to_anchor=(0, 1.02, 1, 0.2), loc="lower left", mode='expand', borderaxespad=0, ncol=4)
 
         fig = plt.gcf()
-        vid_name = 'video_' + str(video_name) + '_curve.png'
+        vid_name = log_dir + '/video_' + str(video_name) + '_curve.png'
         fig.savefig(vid_name)
-        
-
         
         scores = np.concatenate((scores, distance), axis=0)
         comb_scores = np.concatenate((comb_scores, comb_distance), axis=0)
