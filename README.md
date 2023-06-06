@@ -4,7 +4,7 @@ The project is titled "Pseudo-anomaly generation for improving the unsupervised 
 The project was written from February 2023 to June 2nd 2023.
 
 ## Pipeline
-![pipeline](./content_images/ProposedPipeline.png){width=250px}
+![pipeline](./content_images/ProposedPipeline.png)
 
 The pipeline contains three modules:
 1. Generator architecture
@@ -109,8 +109,11 @@ python train.py --batch_size 16 --dataset avenue --iters 1000 --save_interval 10
 ```
 This will make the model evaluate every 500 iterations and save the results in the created evals folder.
 
-## Training of AnomalyDetection:
+### Pseudo-anomaly generated:
+![pipe real](./content_images/10000_target_sample.png "Target frame") 
+![pipe ano](./content_images/10000_G_frame.png "GAN anomaly")
 
+## Training of AnomalyDetection:
 Make sure to cd into the AnomalyDetection folder:
 
 ```bash
@@ -122,17 +125,22 @@ Follow the instructions in the [DATASETS file](./AnomalyDetection/datasets/DATAS
 ### Training of convAE
 This training is only to see if a convAE without adversarial training can be used to create pseudo-anomalies.
 
-Once setup is done, training with L2 loss can be done by running:
+Once setup is done, training with KL loss can be done by running:
 
 ```bash
 python Train_recons_wo_mem.py --lr 0.00002 --epochs 15 --batch_size 8 --t_length 2 --dataset_type avenue --loss KL --h 128 --w 128 --img_norm mnad_norm --test_number 1 --nega_loss --nega_value 0.1 --wandb
 ```
-
 To evaluate the model run:
 
 ```bash
 Evaluate_recons_wo_mem.py --t_length 2 --alpha 0.7 --th 0.015 --test_batch_size 2 --dataset_type avenue --model_dir ./exp/avenue/Test1--lossKL-NegaLoss0.1/14_negLossTrue_model.pth --img_norm dyn_norm --h 128 --w 128
 ```
+Two normalisations can be used for the evaluation: mnad_norm and dyn_norm. 
+mnad_norm normalizes the images to [-1, 1] range, while dyn_norm normalizes the images to [0, 1] range.
+#### Psuedo-anomaly created:
+![mnad_norm](./content_images/convAE_res2_mnad_norm.jpg "mnad_norm") 
+![dyn_norm](./content_images/convAE_res2_dyn_norm.jpg "dyn_norm")
+
 
 ### Training of GAN:
 This training is to see if a GAN can create the normal images from the Avenue dataset.
@@ -143,6 +151,10 @@ Once setup is done, training can be done by running:
 python gannetwork.py --lr 0.0002 --epochs 16 --batch_size 16 --t_length 2 --dataset_type avenue --loss MSE --h 128 --w 128 --img_norm mnad_norm --test_number 6 --type DCGan --wandb
 ```
 No evaluation is done for this training, as it is only to test if the GAN can recreate the normal images.
+
+#### Reconstruction of normal images:
+![gan](./content_images/GAN_res_real.png "DCGan real image") 
+![gan](./content_images/GAN_res.png "DCGan fake image")
 
 ## OGNet Training and testing:
 Make sure to cd into the OGNet folder:
@@ -214,8 +226,7 @@ The plots below shows how well the pipeline classifies frames as normal and abno
 ### Further improvements:
 Adding a second branch to the pipeline to generate predicted normal frames:
 
-![pipeline update](./content_images/ProposedPipelineUpdate.png){width=250px}
-
+![pipeline update](./content_images/ProposedPipelineUpdate.png)
 ## Future improvements:
 - [] Add second branch to pipeline to generate predicted normal frames.
 - [] Implement the other datasets.
