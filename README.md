@@ -4,7 +4,7 @@ The project is titled "Pseudo-anomaly generation for improving the unsupervised 
 The project was written from February 2023 to June 2nd 2023.
 
 ## Pipeline
-![pipeline](./content_images/ProposedPipeline.png)
+![pipeline](./content_images/ProposedPipeline.png){width=250px}
 
 The pipeline contains three modules:
 1. Generator architecture
@@ -214,8 +214,8 @@ The plots below shows how well the pipeline classifies frames as normal and abno
 ### Further improvements:
 Adding a second branch to the pipeline to generate predicted normal frames:
 
-![pipeline update](./content_images/ProposedPipelineUpdate.png)
+![pipeline update](./content_images/ProposedPipelineUpdate.png){width=250px}
 
 ## Future improvements:
-[] Add second branch to pipeline to generate predicted normal frames.
-[] Implement the other datasets.
+- [] Add second branch to pipeline to generate predicted normal frames.
+- [] Implement the other datasets.
