@@ -84,7 +84,7 @@ mkdir models
 mkdir weights
 ```
 
-Follow the instructions in the [README file](./Anomaly_Prediction_FF/README.md) in the Anomaly_Prediction_FF folder on how to set up training and testing.
+Follow the instructions in the [README file](https://github.com/feiyuhuahuo/Anomaly_Prediction/blob/master/README.md) in the Anomaly_Prediction_FF folder on how to set up training and testing.
 
 Once setup is done, training can be done by running:
 
@@ -213,6 +213,7 @@ The plots below shows how well the pipeline classifies frames as normal and abno
 
 ### Further improvements:
 Adding a second branch to the pipeline to generate predicted normal frames:
+
 ![pipeline update](./content_images/ProposedPipelineUpdate.png)
 
 ## Future improvements:
