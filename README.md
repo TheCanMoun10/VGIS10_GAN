@@ -233,9 +233,15 @@ An example of the qualitative results of the pipeline on the Avenue dataset is s
 
 The plots below shows how well the pipeline classifies frames as normal and abnormal.
 #### Good example:
+Classifier is able to classify frames as normal and abnormal, following along with the psnr score.
+
+Abnormal region is marked with red.
 ![good image](./content_images/video_18_curve.png)
 
 #### Bad example:
+All frames except a few are classified as normal, even though they are abnormal.
+
+Abnormal region is marked with red.
 ![bad image](./content_images/video_6_curve.png)
 
 ### Further improvements:
