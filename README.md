@@ -110,7 +110,10 @@ python train.py --batch_size 16 --dataset avenue --iters 1000 --save_interval 10
 This will make the model evaluate every 500 iterations and save the results in the created evals folder.
 
 ### Pseudo-anomaly generated:
+Target frame:
 ![pipe real](./content_images/10000_target_sample.png "Target frame") 
+
+Generated pseudo-anomaly:
 ![pipe ano](./content_images/10000_G_frame.png "GAN anomaly")
 
 ## Training of AnomalyDetection:
@@ -139,7 +142,8 @@ Two normalisations can be used for the evaluation: mnad_norm and dyn_norm.
 mnad_norm normalizes the images to [-1, 1] range, while dyn_norm normalizes the images to [0, 1] range.
 #### Psuedo-anomaly created:
 ![mnad_norm](./content_images/convAE_res2_mnad_norm.jpg "mnad_norm") 
-![dyn_norm](./content_images/convAE_res2_dyn_norm.jpg "dyn_norm")
+
+![dyn_norm](./content_images/convAE_res1_dyn_norm.jpg "dyn_norm")
 
 
 ### Training of GAN:
@@ -153,7 +157,10 @@ python gannetwork.py --lr 0.0002 --epochs 16 --batch_size 16 --t_length 2 --data
 No evaluation is done for this training, as it is only to test if the GAN can recreate the normal images.
 
 #### Reconstruction of normal images:
-![gan](./content_images/GAN_res_real.png "DCGan real image") 
+Real image:
+![gan](./content_images/GAN_res_real.png "DCGan real image")
+
+Reconstruction:
 ![gan](./content_images/GAN_res.png "DCGan fake image")
 
 ## OGNet Training and testing:
@@ -228,5 +235,5 @@ Adding a second branch to the pipeline to generate predicted normal frames:
 
 ![pipeline update](./content_images/ProposedPipelineUpdate.png)
 ## Future improvements:
-- [] Add second branch to pipeline to generate predicted normal frames.
-- [] Implement the other datasets.
+- [ ] Add second branch to pipeline to generate predicted normal frames.
+- [ ] Implement the other datasets.
