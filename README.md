@@ -111,9 +111,11 @@ This will make the model evaluate every 500 iterations and save the results in t
 
 ### Pseudo-anomaly generated:
 Target frame:
+
 ![pipe real](./content_images/10000_target_sample.png "Target frame") 
 
 Generated pseudo-anomaly:
+
 ![pipe ano](./content_images/10000_G_frame.png "GAN anomaly")
 
 ## Training of AnomalyDetection:
@@ -141,7 +143,11 @@ Evaluate_recons_wo_mem.py --t_length 2 --alpha 0.7 --th 0.015 --test_batch_size 
 Two normalisations can be used for the evaluation: mnad_norm and dyn_norm. 
 mnad_norm normalizes the images to [-1, 1] range, while dyn_norm normalizes the images to [0, 1] range.
 #### Psuedo-anomaly created:
+mnad_norm:
+
 ![mnad_norm](./content_images/convAE_res2_mnad_norm.jpg "mnad_norm") 
+
+dyn_norm:
 
 ![dyn_norm](./content_images/convAE_res1_dyn_norm.jpg "dyn_norm")
 
@@ -158,9 +164,11 @@ No evaluation is done for this training, as it is only to test if the GAN can re
 
 #### Reconstruction of normal images:
 Real image:
+
 ![gan](./content_images/GAN_res_real.png "DCGan real image")
 
 Reconstruction:
+
 ![gan](./content_images/GAN_res.png "DCGan fake image")
 
 ## OGNet Training and testing:
