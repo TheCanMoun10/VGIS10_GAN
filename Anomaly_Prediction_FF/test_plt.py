@@ -17,6 +17,9 @@ labels = np.array([], dtype=np.int8)
 comb_scores = np.array([], dtype=np.float32)
 class_scores = np.array([], dtype=np.float32)
 video = 0
+
+total_samples = 0
+total_correct = 0
     
 for i in range(len(arr_a)):
         # combine psnr and classification score, by adding them together.
@@ -67,7 +70,7 @@ for i in range(len(arr_a)):
         class_scores = np.concatenate((class_scores, classification_distance), axis=0)
         video += 1
         plt.clf()
-        # labels = np.concatenate((labels, gt[i][4:]), axis=0)  # Exclude the first 4 unpredictable frames in gt.
+        labels = np.concatenate((labels, gt_arr[i][1:]), axis=0)  # Exclude the first 4 unpredictable frames in gt.
 
     # norm_scores = np.array([], dtype=np.float32)
     # abnorm_scores = np.array([], dtype=np.float32)

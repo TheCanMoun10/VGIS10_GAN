@@ -31,18 +31,21 @@ parser.add_argument('--wandb', action='store_true',
                     help='Use wandb to log the psnr curve and heatmap.')
 
 
-def val(cfg, model=None, model_classifier = None, flow_loss=0.6):
+def val(cfg, model=None, model_abn=None, model_classifier = None, flow_loss=0.6):
     if model:  # This is for testing during training.
         generator = model
+        generator_abn = model_abn
         classifier = model_classifier
         generator.eval()
+        generator_abn.eval()
         classifier.eval()
     else:
         generator = UNet(input_channels=12, output_channel=3).cuda().eval()
+        generator_abn = UNet(input_channels=12, output_channel=3).cuda().eval()
         classifier = d_netclassifier().cuda().eval()
-        generator.load_state_dict(torch.load('weights/' + cfg.trained_model)['net_g'])
+        generator.load_state_dict(torch.load('weights/' + cfg.trained_model)['net_g_norm'])
+        generator.load_state_dict(torch.load('weights/' + cfg.trained_model)['net_g_abn'])
         classifier.load_state_dict(torch.load('weights/' + cfg.trained_model)['net_c'])
-        # classfier.load_state_dict(torch.load('weights/' + cfg.trained_model)['net_c_abnorm'])
         print(f'The pre-trained generator and classifier has been loaded from \'weights/{cfg.trained_model}\'.\n')
 
     video_folders = os.listdir(cfg.test_data)
@@ -110,13 +113,6 @@ def val(cfg, model=None, model_classifier = None, flow_loss=0.6):
                
                 G_frame = generator(input_frames)
                 class_frame = classifier(target_frame)
-                
-                # abn_score = classifier_abnorm(target_frame) # 
-                # abn_score = torch.max(abn_score)
-                # print(abn_score)
-                # norm_score = classifier_norm(target_frame)
-                # norm_score = torch.max(norm_score)
-                # print(norm_score)
                 
                 if j % 500 == 0:
                     name = folder.split('/')[-1]
@@ -244,13 +240,6 @@ def val(cfg, model=None, model_classifier = None, flow_loss=0.6):
         labels = np.concatenate((labels, gt[i][4:]), axis=0)  # Exclude the first 4 unpredictable frames in gt.
         video_name += 1
         plt.clf()
-    
-    # norm_scores = np.array([], dtype=np.float32)
-    # abnorm_scores = np.array([], dtype=np.float32)
-    # for i in range(len(cl_group_norm)):
-
-    # norm_scores = np.concatenate((norm_scores, cl_group_norm[i][1:]), axis=0)
-    # abnorm_scores = np.concatenate((abnorm_scores, cl_group_abnorm[i][1:]), axis=0)
           
     assert scores.shape == labels.shape, \
         f'Ground truth has {labels.shape[0]} frames, but got {scores.shape[0]} detected frames.'
@@ -265,9 +254,7 @@ def val(cfg, model=None, model_classifier = None, flow_loss=0.6):
     for i in range(frames_a[0].shape[0]):
         abnormal_frames.append(frames_a[0][i])
         abnormal_scores.append(scores[frames_a[0][i]])
-        # new_abnormal_scores.append(comb_scores[frames_a[0][i]])
         
-
     fpr, tpr, thresholds = metrics.roc_curve(labels, scores, pos_label=0) # Psnr scores.
     fpr_class, tpr_class, thresholds_class = metrics.roc_curve(labels, class_scores, pos_label=0) # Classification scores.
     comb_fpr, comb_tpr, comb_thresholds = metrics.roc_curve(labels, comb_scores, pos_label=0)
@@ -275,6 +262,10 @@ def val(cfg, model=None, model_classifier = None, flow_loss=0.6):
     auc = metrics.auc(fpr, tpr) # Psnr auc.
     auc_class = metrics.auc(fpr_class, tpr_class) # Classification auc.
     comb_auc = metrics.auc(comb_fpr, comb_tpr) # Combined auc.
+    
+    # _, predicted = torch.max(class_scores, 1) 
+    # total_samples += labels.size(0) 
+    # total_correct += (predicted == labels).sum().item()
 
     print(f'AUC (Future Frame, psnr): {auc*100:.4f}%\n')
     print(f'AUC (Proposed Pipeline): {comb_auc*100:.4f}%\n')
