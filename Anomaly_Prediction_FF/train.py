@@ -361,3 +361,5 @@ except KeyboardInterrupt:
                   'net_c': classifier.state_dict(), 'optimizer_c': optimizer_C.state_dict()}
     # torch.save(model_dict, f'weights/test7_latest_{train_cfg.dataset}_{step}_klloss{args.kldiv_loss}_perceptloss.pth')
     torch.save(model_dict, f'weights/latest_{train_cfg.dataset}_{step}_flloss{args.wfl_loss}_perceptloss_classifier.pth')
+    
+    #Thus ends the program.
