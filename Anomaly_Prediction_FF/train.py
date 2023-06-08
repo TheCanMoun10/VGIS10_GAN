@@ -135,6 +135,7 @@ start_iter = int(train_cfg.resume.split('_')[-1].split('.')[0]) if train_cfg.res
 training = True
 generator = generator.train()
 discriminator = discriminator.train()
+discriminator_normal = discriminator_normal.train()
 classifier = classifier.train()
 
 total_samples = 0
