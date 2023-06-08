@@ -61,7 +61,7 @@ if args.wandb:
 #     if not os.path.exists(log_dir_abnormal):
 #         os.makedirs(log_dir_abnormal)
 
-log_dir = os.path.join('./images', args.dataset, str(args.iters), 'flow_loss'+str(args.wfl_loss))
+log_dir = os.path.join('./images', args.dataset, str(args.iters), str(args.batch_size), 'flow_loss'+str(args.wfl_loss))
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
 
@@ -105,7 +105,7 @@ else:
 
 flow_net.cuda().eval()  # Use flow_net to generate optic flows, so set to eval mode.
 
-# Losses:
+# Losses abnnormal:
 adversarial_loss = Adversarial_Loss().cuda()
 discriminate_loss = Discriminate_Loss().cuda()
 gradient_loss = Gradient_Loss(3).cuda()
@@ -114,6 +114,14 @@ intensity_loss = Intensity_Loss().cuda()
 kullback_loss = nn.KLDivLoss(reduction='batchmean').cuda()
 perceptual_loss = Perceptual_Loss([2,7,12,21,30]).cuda()
 
+
+# Losses Normal:
+adversarial_loss_normal = Adversarial_Loss().cuda()
+discriminate_loss_normal = Discriminate_Loss().cuda()
+gradient_loss_normal = Gradient_Loss(3).cuda()
+flow_loss_normal = Flow_Loss().cuda()
+intensity_loss_normal = Intensity_Loss().cuda()
+perceptual_loss_normal = Perceptual_Loss([2,7,12,21,30]).cuda()
 
 train_dataset = Dataset.train_dataset(train_cfg)
 # print(train_dataset)
@@ -205,31 +213,31 @@ try:
             G_l_t = 1. * inte_l + 1. * grad_l + 0.05 * gan_l + 2*fl_l + p_loss # Abnormal GAN loss
 
             # Normal branch training:
-            inte_l_norm = intensity_loss(G_frame_normal, target_frame)
-            grad_l_norm = gradient_loss(G_frame_normal, target_frame)
-            fl_l_norm = flow_loss(flow_pred, flow_gt)
-            gan_l_norm = adversarial_loss(discriminator_normal(G_frame_normal))
-            p_loss_norm = perceptual_loss(G_frame_normal, target_frame)
+            inte_l_norm = intensity_loss_normal(G_frame_normal, target_frame)
+            grad_l_norm = gradient_loss_normal(G_frame_normal, target_frame)
+            fl_l_norm = flow_loss_normal(flow_pred, flow_gt)
+            gan_l_norm = adversarial_loss_normal(discriminator_normal(G_frame_normal))
+            p_loss_norm = perceptual_loss_normal(G_frame_normal, target_frame)
             G_l_t_norm = 1. * inte_l_norm + 1. * grad_l_norm + 0.05 * gan_l_norm + 2*fl_l_norm + p_loss_norm + C_l_t #Normal GAN loss, classifier loss added as this generator is used in evaluation.
             
             # When training discriminator, don't train generator, so use .detach() to cut off gradients.
             D_l_abn = discriminate_loss(discriminator(target_frame), discriminator(G_frame.detach()))
-            D_l_norm = discriminate_loss(discriminator_normal(target_frame), discriminator_normal(G_frame_normal.detach()))
+            D_l_norm = discriminate_loss_normal(discriminator_normal(target_frame), discriminator_normal(G_frame_normal.detach()))
             # D_l_t = (D_l_abn + D_l_norm) / 2 
             # C_l_t = cl_loss_abn + cl_loss_n
 
             # Or just do .step() after all the gradients have been computed, like the following way:
             optimizer_D.zero_grad()
             optimizer_D_normal.zero_grad()
-            D_l_abn.backward()
-            D_l_norm.backward()
+            D_l_abn.backward(retain_graph=True)
+            D_l_norm.backward(retain_graph=True)
             # D_l_t.backward()
             optimizer_G.zero_grad()
             optimizer_G_normal.zero_grad()
             optimizer_C.zero_grad()
 
-            G_l_t.backward()
-            G_l_t_norm.backward()
+            G_l_t.backward(retain_graph=True)
+            G_l_t_norm.backward(retain_graph=True)
             optimizer_D.step()
             optimizer_G.step()
             optimizer_G_normal.step()
@@ -254,7 +262,7 @@ try:
                     
                     print(f"[{step} / {int(train_cfg.iters)}] | fl_l_abn: {fl_l:.4f}  | gan_l_abn: {gan_l:.4f} | G_l_total_abn: {G_l_t:.4f} | ")
                     print(f"fl_l_norm: {fl_l_norm:.4f}  | gan_l_norm: {gan_l_norm:.4f} | G_l_total_norm: {G_l_t_norm:.4f} | ")
-                    print(f" cl_loss_abn: {cl_loss_abn:.4f} | cl_loss_n: {cl_loss_n:.4f} | C_l_t: {C_l_t:.4f} | psnr_abn: {psnr:.4f} | psnr_norm: {psnr_norm:.4f}")
+                    print(f"cl_loss_abn: {cl_loss_abn:.4f} | cl_loss_n: {cl_loss_n:.4f} | C_l_t: {C_l_t:.4f} | psnr_abn: {psnr:.4f} | psnr_norm: {psnr_norm:.4f}")
                     print(f"iter: {iter_t:.4f}s | ETA: {eta} | lr: {lr_g} / {lr_d} / {lr_c} | \n")
 
                     if args.wandb:
