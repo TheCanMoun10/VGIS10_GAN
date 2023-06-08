@@ -83,17 +83,21 @@ classifier_loss = torch.nn.BCELoss().cuda()
 optimizer_C = torch.optim.SGD(classifier.parameters(), lr=train_cfg.c_lr)
 
 if train_cfg.resume:
-    generator.load_state_dict(torch.load(train_cfg.resume)['net_g'])
-    discriminator.load_state_dict(torch.load(train_cfg.resume)['net_d'])
+    generator.load_state_dict(torch.load(train_cfg.resume)['net_g_abn'])
+    discriminator.load_state_dict(torch.load(train_cfg.resume)['net_d_abn'])
+    generator_normal.load_state_dict(torch.load(train_cfg.resume)['net_g_norm'])
+    discriminator_normal.load_state_dict(torch.load(train_cfg.resume)['net_d_norm'])
     classifier.load_state_dict(torch.load(train_cfg.resume)['net_c'])
-    optimizer_G.load_state_dict(torch.load(train_cfg.resume)['optimizer_g'])
-    optimizer_D.load_state_dict(torch.load(train_cfg.resume)['optimizer_d'])
+    optimizer_G.load_state_dict(torch.load(train_cfg.resume)['optimizer_g_abn'])
+    optimizer_G_normal.load_state_dict(torch.load(train_cfg.resume)['optimizer_g_norm'])
+    optimizer_D.load_state_dict(torch.load(train_cfg.resume)['optimizer_d_abn'])
     optimizer_C.load_state_dict(torch.load(train_cfg.resume)['optimizer_c'])
     print(f'Pre-trained generator, discriminator and classifiers have been loaded.\n')
 else:
     generator.apply(weights_init_normal)
     discriminator.apply(weights_init_normal)
-    print('Generator, discriminator and classifiers are going to be trained from scratch.\n')
+    discriminator_normal.apply(weights_init_normal)
+    print('Generators, discriminators and classifier are going to be trained from scratch.\n')
 
 assert train_cfg.flownet in ('lite', '2sd'), 'Flow net only supports LiteFlownet or FlowNet2SD currently.'
 if train_cfg.flownet == '2sd':
