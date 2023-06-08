@@ -260,15 +260,17 @@ try:
                     lr_d = optimizer_D.param_groups[0]['lr']
                     lr_c = optimizer_C.param_groups[0]['lr']
                     
-                    print(f"[{step} / {int(train_cfg.iters)}] | fl_l_abn: {fl_l:.4f}  | gan_l_abn: {gan_l:.4f} | G_l_total_abn: {G_l_t:.4f} | ")
-                    print(f"fl_l_norm: {fl_l_norm:.4f}  | gan_l_norm: {gan_l_norm:.4f} | G_l_total_norm: {G_l_t_norm:.4f} | ")
-                    print(f"cl_loss_abn: {cl_loss_abn:.4f} | cl_loss_n: {cl_loss_n:.4f} | C_l_t: {C_l_t:.4f} | psnr_abn: {psnr:.4f} | psnr_norm: {psnr_norm:.4f}")
-                    print(f"iter: {iter_t:.4f}s | ETA: {eta} | lr: {lr_g} / {lr_d} / {lr_c} | \n")
+                    print(f"[{step} / {int(train_cfg.iters)}]")
+                    print(f"fl_l_abn: {fl_l:.3f}  | gan_l_abn: {gan_l:.3f} | G_l_total_abn: {G_l_t:.3f} | ")
+                    print(f"fl_l_nrm: {fl_l_norm:.3f}  | gan_l_nrm: {gan_l_norm:.3f} | G_l_total_nrm: {G_l_t_norm:.3f} | ")
+                    print(f"cl_loss_abn: {cl_loss_abn:.3f} | cl_loss_nrm: {cl_loss_n:.3f} | C_l_t: {C_l_t:.3f} | ") 
+                    print(f"psnr_abn: {psnr:.3f} | psnr_nrm: {psnr_norm:.3f}")
+                    print(f"iter: {iter_t:.3f}s | ETA: {eta} | lr: {lr_g} / {lr_d} / {lr_c} | \n")
 
                     if args.wandb:
-                        wandb.log({"psnr": psnr, "G_l_total": G_l_t, "D_l_abn": D_l_abn, "gan_l": gan_l, "D_l_norm": D_l_norm, "gan_l_norm":G_l_t_norm, "fl_l_abn": fl_l,
-                                   "fl_l_norm": fl_l_norm,
-                                    "iter": iter_t, "lr_g": lr_g, "lr_d": lr_d, "lr_c": lr_c, "cl_loss_abn": cl_loss_abn, "cl_loss_n": cl_loss_n, "C_l_t": C_l_t})
+                        wandb.log({"psnr": psnr, "G_l_total": G_l_t, "D_l_abn": D_l_abn, "gan_l": gan_l, "D_l_nrm": D_l_norm, "gan_l_nrm":G_l_t_norm, "fl_l_abn": fl_l,
+                                   "fl_l_nrm": fl_l_norm,
+                                    "iter": iter_t, "lr_g": lr_g, "lr_d": lr_d, "lr_c": lr_c, "cl_loss_abn": cl_loss_abn, "cl_loss_nrm": cl_loss_n, "C_l_t": C_l_t})
 
                     save_G_frame = ((G_frame[0] + 1) / 2)
                     save_G_frame_normal = ((G_frame_normal[0]+1)/2)
