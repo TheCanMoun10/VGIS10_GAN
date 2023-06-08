@@ -44,7 +44,7 @@ def val(cfg, model=None, model_abn=None, model_classifier = None, flow_loss=0.6)
         generator_abn = UNet(input_channels=12, output_channel=3).cuda().eval()
         classifier = d_netclassifier().cuda().eval()
         generator.load_state_dict(torch.load('weights/' + cfg.trained_model)['net_g_norm'])
-        generator.load_state_dict(torch.load('weights/' + cfg.trained_model)['net_g_abn'])
+        generator_abn.load_state_dict(torch.load('weights/' + cfg.trained_model)['net_g_abn'])
         classifier.load_state_dict(torch.load('weights/' + cfg.trained_model)['net_c'])
         print(f'The pre-trained generator and classifier has been loaded from \'weights/{cfg.trained_model}\'.\n')
 
