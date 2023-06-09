@@ -66,16 +66,16 @@ if not os.path.exists(log_dir):
     os.makedirs(log_dir)
 
 # Abnormal branch:
-generator = UNet(input_channels=12, output_channel=3).cuda()
-discriminator = PixelDiscriminator(input_nc=3).cuda()
-optimizer_G = torch.optim.Adam(generator.parameters(), lr=train_cfg.g_lr)
-optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=train_cfg.d_lr)
+generator_abn = UNet(input_channels=12, output_channel=3).cuda()
+discriminator_abn = PixelDiscriminator(input_nc=3).cuda()
+Optimizer_G_abn = torch.optim.Adam(generator_abn.parameters(), lr=train_cfg.g_lr)
+Optimizer_D_abn = torch.optim.Adam(discriminator_abn.parameters(), lr=train_cfg.d_lr)
 
 # Normal branch:
-generator_normal = UNet(input_channels=12, output_channel=3).cuda()
-discriminator_normal = PixelDiscriminator(input_nc=3).cuda()
-optimizer_G_normal = torch.optim.Adam(generator.parameters(), lr=train_cfg.g_lr)
-optimizer_D_normal = torch.optim.Adam(discriminator.parameters(), lr=train_cfg.d_lr)
+generator_nrm = UNet(input_channels=12, output_channel=3).cuda()
+discriminator_nrm = PixelDiscriminator(input_nc=3).cuda()
+optimizer_G_nrm = torch.optim.Adam(generator_nrm.parameters(), lr=train_cfg.g_lr)
+optimizer_D_nrm = torch.optim.Adam(discriminator_nrm.parameters(), lr=train_cfg.d_lr)
 
 # Setup classifier:
 classifier = d_netclassifier().cuda()
@@ -83,20 +83,20 @@ classifier_loss = torch.nn.BCELoss().cuda()
 optimizer_C = torch.optim.SGD(classifier.parameters(), lr=train_cfg.c_lr)
 
 if train_cfg.resume:
-    generator.load_state_dict(torch.load(train_cfg.resume)['net_g_abn'])
-    discriminator.load_state_dict(torch.load(train_cfg.resume)['net_d_abn'])
-    generator_normal.load_state_dict(torch.load(train_cfg.resume)['net_g_norm'])
-    discriminator_normal.load_state_dict(torch.load(train_cfg.resume)['net_d_norm'])
+    generator_abn.load_state_dict(torch.load(train_cfg.resume)['net_g_abn'])
+    discriminator_abn.load_state_dict(torch.load(train_cfg.resume)['net_d_abn'])
+    generator_nrm.load_state_dict(torch.load(train_cfg.resume)['net_g_norm'])
+    discriminator_nrm.load_state_dict(torch.load(train_cfg.resume)['net_d_norm'])
     classifier.load_state_dict(torch.load(train_cfg.resume)['net_c'])
-    optimizer_G.load_state_dict(torch.load(train_cfg.resume)['optimizer_g_abn'])
-    optimizer_G_normal.load_state_dict(torch.load(train_cfg.resume)['optimizer_g_norm'])
-    optimizer_D.load_state_dict(torch.load(train_cfg.resume)['optimizer_d_abn'])
+    Optimizer_G_abn.load_state_dict(torch.load(train_cfg.resume)['optimizer_g_abn'])
+    optimizer_G_nrm.load_state_dict(torch.load(train_cfg.resume)['optimizer_g_norm'])
+    Optimizer_D_abn.load_state_dict(torch.load(train_cfg.resume)['optimizer_d_abn'])
     optimizer_C.load_state_dict(torch.load(train_cfg.resume)['optimizer_c'])
-    print(f'Pre-trained generator, discriminator and classifiers have been loaded.\n')
+    print(f'Pre-trained generators, discriminators and classifiers have been loaded.\n')
 else:
-    generator.apply(weights_init_normal)
-    discriminator.apply(weights_init_normal)
-    discriminator_normal.apply(weights_init_normal)
+    generator_abn.apply(weights_init_normal)
+    discriminator_abn.apply(weights_init_normal)
+    discriminator_nrm.apply(weights_init_normal)
     print('Generators, discriminators and classifier are going to be trained from scratch.\n')
 
 assert train_cfg.flownet in ('lite', '2sd'), 'Flow net only supports LiteFlownet or FlowNet2SD currently.'
@@ -137,9 +137,9 @@ train_dataloader = DataLoader(dataset=train_dataset, batch_size=train_cfg.batch_
 writer = SummaryWriter(f'tensorboard_log/{train_cfg.dataset}_bs{train_cfg.batch_size}_wflowloss{args.wfl_loss}')
 start_iter = int(train_cfg.resume.split('_')[-1].split('.')[0]) if train_cfg.resume else 0
 training = True
-generator = generator.train()
-discriminator = discriminator.train()
-discriminator_normal = discriminator_normal.train()
+generator_abn = generator_abn.train()
+discriminator_abn = discriminator_abn.train()
+discriminator_nrm = discriminator_nrm.train()
 classifier = classifier.train()
 
 total_samples = 0
@@ -165,8 +165,8 @@ try:
                     train_dataset.all_seqs[index] = list(range(len(train_dataset.videos[index]) - 4))
                     random.shuffle(train_dataset.all_seqs[index])
 
-            G_frame = generator(input_frames)
-            G_frame_normal = generator_normal(input_frames)
+            G_frame = generator_abn(input_frames)
+            G_frame_normal = generator_nrm(input_frames)
             # Step 1: Classification for pseudo anomalies
             pseudo_class = classifier(G_frame)
             # print(pseudo_class)
@@ -185,16 +185,20 @@ try:
 
             if train_cfg.flownet == 'lite':
                 gt_flow_input = torch.cat([input_last, target_frame], 1)
-                pred_flow_input = torch.cat([input_last, G_frame], 1)
+                pred_flow_input = torch.cat([input_last, G_frame], 1) # Abnormal flow.
+                pred_flow_input_nrm = torch.cat([input_last, G_frame_normal], 1) # Normal flow 
                 # No need to train flow_net, use .detach() to cut off gradients.
                 flow_gt = flow_net.batch_estimate(gt_flow_input, flow_net).detach()
                 flow_pred = flow_net.batch_estimate(pred_flow_input, flow_net).detach()
+                flow_pred_nrm = flow_net.batch_estimate(pred_flow_input_nrm, flow_net).detach()
             else:
                 gt_flow_input = torch.cat([input_last.unsqueeze(2), target_frame.unsqueeze(2)], 2)
                 pred_flow_input = torch.cat([input_last.unsqueeze(2), G_frame.unsqueeze(2)], 2)
+                pred_flow_input_nrm = torch.cat([input_last.unsqueeze(2), G_frame_normal.unsqueeze(2)], 2)
 
                 flow_gt = (flow_net(gt_flow_input * 255.) / 255.).detach()  # Input for flownet2sd is in (0, 255).
                 flow_pred = (flow_net(pred_flow_input * 255.) / 255.).detach()
+                flow_pred_nrm = (flow_net(pred_flow_input_nrm * 255.) / 255.).detach()
 
             if train_cfg.show_flow:
                 flow = np.array(flow_gt.cpu().detach().numpy().transpose(0, 2, 3, 1), np.float32)  # to (n, w, h, 2)
@@ -205,47 +209,47 @@ try:
                     print(f'Saved a sample optic flow image from gt frames: \'images/{path}.jpg\'.')
 
             # Abnormal branch training:
-            inte_l = intensity_loss(G_frame, target_frame)
-            grad_l = gradient_loss(G_frame, target_frame)
-            fl_l   =  -args.wfl_loss*flow_loss(flow_gt, flow_pred)
-            gan_l  = adversarial_loss(discriminator(G_frame))
+            inte_l_abn = intensity_loss(G_frame, target_frame)
+            grad_l_abn = gradient_loss(G_frame, target_frame)
+            fl_l_abn   =  -args.wfl_loss*flow_loss(flow_gt, flow_pred)
+            gan_l_abn  = adversarial_loss(discriminator_abn(G_frame))
             # kl_loss = -args.kldiv_loss*kullback_loss(nn.functional.log_softmax(target_frame, dim=1), nn.functional.softmax(G_frame, dim=1))
-            p_loss = perceptual_loss(G_frame, target_frame)
+            p_loss_abn = perceptual_loss(G_frame, target_frame)
             cl_loss_abn = torch.mean(classifier_loss(pseudo_class, pseudo_labels))
             cl_loss_n = torch.mean(classifier_loss(normal_class, normal_labels))
             # Add mean classifier loss.
             C_l_t = (cl_loss_abn + cl_loss_n)/2
-            G_l_t = 1. * inte_l + 1. * grad_l + 0.05 * gan_l + 2*fl_l + p_loss # Abnormal GAN loss
+            G_l_t_abn = 1. * inte_l_abn + 1. * grad_l_abn + 0.05 * gan_l_abn + 2*fl_l_abn + p_loss_abn # Abnormal GAN loss
 
             # Normal branch training:
-            inte_l_norm = intensity_loss_normal(G_frame_normal, target_frame)
-            grad_l_norm = gradient_loss_normal(G_frame_normal, target_frame)
-            fl_l_norm = flow_loss_normal(flow_pred, flow_gt)
-            gan_l_norm = adversarial_loss_normal(discriminator_normal(G_frame_normal))
-            p_loss_norm = perceptual_loss_normal(G_frame_normal, target_frame)
-            G_l_t_norm = 1. * inte_l_norm + 1. * grad_l_norm + 0.05 * gan_l_norm + 2*fl_l_norm + p_loss_norm + C_l_t #Normal GAN loss, classifier loss added as this generator is used in evaluation.
+            inte_l_nrm = intensity_loss_normal(G_frame_normal, target_frame)
+            grad_l_nrm = gradient_loss_normal(G_frame_normal, target_frame)
+            fl_l_nrm = flow_loss_normal(flow_pred_nrm, flow_gt)
+            gan_l_nrm = adversarial_loss_normal(discriminator_nrm(G_frame_normal))
+            p_loss_nrm = perceptual_loss_normal(G_frame_normal, target_frame)
+            G_l_t_nrm = 1. * inte_l_nrm + 1. * grad_l_nrm + 0.05 * gan_l_nrm + 2*fl_l_nrm + p_loss_nrm + C_l_t #Normal GAN loss, classifier loss added as this generator is used in evaluation.
             
             # When training discriminator, don't train generator, so use .detach() to cut off gradients.
-            D_l_abn = discriminate_loss(discriminator(target_frame), discriminator(G_frame.detach()))
-            D_l_norm = discriminate_loss_normal(discriminator_normal(target_frame), discriminator_normal(G_frame_normal.detach()))
+            D_l_abn = discriminate_loss(discriminator_abn(target_frame), discriminator_abn(G_frame.detach()))
+            D_l_nrm = discriminate_loss_normal(discriminator_nrm(target_frame), discriminator_nrm(G_frame_normal.detach()))
             # D_l_t = (D_l_abn + D_l_norm) / 2 
             # C_l_t = cl_loss_abn + cl_loss_n
 
             # Or just do .step() after all the gradients have been computed, like the following way:
-            optimizer_D.zero_grad()
-            optimizer_D_normal.zero_grad()
+            Optimizer_D_abn.zero_grad()
+            optimizer_D_nrm.zero_grad()
             D_l_abn.backward(retain_graph=True)
-            D_l_norm.backward(retain_graph=True)
+            D_l_nrm.backward(retain_graph=True)
             # D_l_t.backward()
-            optimizer_G.zero_grad()
-            optimizer_G_normal.zero_grad()
+            Optimizer_G_abn.zero_grad()
+            optimizer_G_nrm.zero_grad()
             optimizer_C.zero_grad()
 
-            G_l_t.backward(retain_graph=True)
-            G_l_t_norm.backward(retain_graph=True)
-            optimizer_D.step()
-            optimizer_G.step()
-            optimizer_G_normal.step()
+            G_l_t_abn.backward(retain_graph=True)
+            G_l_t_nrm.backward(retain_graph=True)
+            Optimizer_D_abn.step()
+            Optimizer_G_abn.step()
+            optimizer_G_nrm.step()
             optimizer_C.step()
 
             
@@ -259,40 +263,44 @@ try:
                 if step % 10 == 0:
                     time_remain = (train_cfg.iters - step) * iter_t
                     eta = str(datetime.timedelta(seconds=time_remain)).split('.')[0]
-                    psnr_norm = psnr_error(G_frame_normal, target_frame)
-                    psnr = psnr_error(G_frame, target_frame)
-                    lr_g = optimizer_G.param_groups[0]['lr']
-                    lr_d = optimizer_D.param_groups[0]['lr']
+                    psnr_nrm = psnr_error(G_frame_normal, target_frame)
+                    psnr_abn = psnr_error(G_frame, target_frame)
+                    lr_g = Optimizer_G_abn.param_groups[0]['lr']
+                    lr_d = Optimizer_D_abn.param_groups[0]['lr']
                     lr_c = optimizer_C.param_groups[0]['lr']
                     
                     print(f"[{step} / {int(train_cfg.iters)}]")
-                    print(f"fl_l_abn: {fl_l:.3f}  | gan_l_abn: {gan_l:.3f} | G_l_total_abn: {G_l_t:.3f} | ")
-                    print(f"fl_l_nrm: {fl_l_norm:.3f}  | gan_l_nrm: {gan_l_norm:.3f} | G_l_total_nrm: {G_l_t_norm:.3f} | ")
+                    print(f"fl_l_abn: {fl_l_abn:.3f}  | gan_l_abn: {gan_l_abn:.3f} | G_l_total_abn: {G_l_t_abn:.3f} | ")
+                    print(f"fl_l_nrm: {fl_l_nrm:.3f}   | gan_l_nrm: {gan_l_nrm:.3f} | G_l_total_nrm: {G_l_t_nrm:.3f} | ")
                     print(f"cl_loss_abn: {cl_loss_abn:.3f} | cl_loss_nrm: {cl_loss_n:.3f} | C_l_t: {C_l_t:.3f} | ") 
-                    print(f"psnr_abn: {psnr:.3f} | psnr_nrm: {psnr_norm:.3f}")
+                    print(f"psnr_abn: {psnr_abn:.3f} | psnr_nrm: {psnr_nrm:.3f}")
                     print(f"iter: {iter_t:.3f}s | ETA: {eta} | lr: {lr_g} / {lr_d} / {lr_c} | \n")
 
                     if args.wandb:
-                        wandb.log({"psnr": psnr, "G_l_total": G_l_t, "D_l_abn": D_l_abn, "gan_l": gan_l, "D_l_nrm": D_l_norm, "gan_l_nrm":G_l_t_norm, "fl_l_abn": fl_l,
-                                   "fl_l_nrm": fl_l_norm,
-                                    "iter": iter_t, "lr_g": lr_g, "lr_d": lr_d, "lr_c": lr_c, "cl_loss_abn": cl_loss_abn, "cl_loss_nrm": cl_loss_n, "C_l_t": C_l_t})
+                        wandb.log({"psnr_abn": psnr_abn, "psnr_nrm": psnr_nrm, 
+                                   "G_l_total_abn": G_l_t_abn, "G_l_total_nrm": G_l_t_nrm,
+                                   "D_l_abn": D_l_abn,  "D_l_nrm": D_l_nrm, 
+                                   "gan_l_nrm":gan_l_nrm, "gan_l_abn": gan_l_abn, 
+                                   "fl_l_abn": fl_l_abn, "fl_l_nrm": fl_l_nrm,
+                                    "cl_loss_abn": cl_loss_abn, "cl_loss_nrm": cl_loss_n, "C_l_t": C_l_t})
 
                     save_G_frame = ((G_frame[0] + 1) / 2)
                     save_G_frame_normal = ((G_frame_normal[0]+1)/2)
                     save_G_frame = save_G_frame.cpu().detach()[(2, 1, 0), ...]
+                    save_G_frame_normal = save_G_frame_normal.cpu().detach()[(2,1,0), ...]
                     save_target = ((target_frame[0] + 1) / 2)
                     save_target = save_target.cpu().detach()[(2, 1, 0), ...]
 
-                    writer.add_scalar('psnr/train_psnr_abn', psnr_norm, global_step=step)
-                    writer.add_scalar('psnr/train_psnr_norm', psnr_norm, global_step=step)
-                    writer.add_scalar('total_loss/g_loss_total_abn', G_l_t, global_step=step)
-                    writer.add_scalar('total_loss/g_loss_total_norm', G_l_t_norm, global_step=step)                    
+                    writer.add_scalar('psnr/train_psnr_abn', psnr_abn, global_step=step)
+                    writer.add_scalar('psnr/train_psnr_norm', psnr_nrm, global_step=step)
+                    writer.add_scalar('total_loss/g_loss_total_abn', G_l_t_abn, global_step=step)
+                    writer.add_scalar('total_loss/g_loss_total_norm', G_l_t_nrm, global_step=step)                    
                     writer.add_scalar('total_loss/d_loss_abn', D_l_abn, global_step=step)
-                    writer.add_scalar('total_loss/d_loss_abn', D_l_norm, global_step=step)                    
-                    writer.add_scalar('G_loss_total/gan_loss_abn', gan_l, global_step=step)
-                    writer.add_scalar('G_loss_total/gan_loss_norm', gan_l_norm, global_step=step)                    
-                    writer.add_scalar('G_loss_total/fl_loss_abn', fl_l, global_step=step)
-                    writer.add_scalar('G_loss_total/fl_loss_norm', fl_l_norm, global_step=step)
+                    writer.add_scalar('total_loss/d_loss_abn', D_l_nrm, global_step=step)                    
+                    writer.add_scalar('G_loss_total/gan_loss_abn', gan_l_abn, global_step=step)
+                    writer.add_scalar('G_loss_total/gan_loss_norm', gan_l_nrm, global_step=step)                    
+                    writer.add_scalar('G_loss_total/fl_loss_abn', fl_l_abn, global_step=step)
+                    writer.add_scalar('G_loss_total/fl_loss_norm', fl_l_nrm, global_step=step)
 
 
                 if step % int(train_cfg.iters / 100) == 0:
@@ -300,25 +308,25 @@ try:
                     #     wandb.log({"G_frame": [wandb.Image(save_G_frame, caption='%05d_G_frame' % (step))], "target_frame ": [wandb.Image(save_target, caption="%05d_target frame" % (step))]})
                     
                     vutils.save_image(save_target, os.path.join(log_dir, '%05d_target_sample.png' % (step)), normalize=True)
-                    vutils.save_image(save_G_frame, os.path.join(log_dir, '%05d_G_frame.png' % (step)), normalize=True)
-                    vutils.save_image(save_G_frame_normal, os.path.join(log_dir, '%05d_G_frame_pred.png' % (step)), normalize=True)
+                    vutils.save_image(save_G_frame, os.path.join(log_dir, '%05d_Gabn_frame.png' % (step)), normalize=True)
+                    vutils.save_image(save_G_frame_normal, os.path.join(log_dir, '%05d_Gnrm_frame_pred.png' % (step)), normalize=True)
                     writer.add_image('image/G_frame', save_G_frame, global_step=step)
                     writer.add_image('image/target', save_target, global_step=step)
                     writer.add_image('image/G_frame_pred', save_G_frame_normal, global_step=step)                    
                 
                 if step % train_cfg.save_interval == 0:
                     if args.wandb:
-                        wandb.log({"avenue_G_frame": [wandb.Image(save_G_frame, caption="%s_%05d_abnormal_frame" % (args.dataset, step))],
-                                   "avenue_G_frame_pred": [wandb.Image(save_G_frame_normal, caption="%s_%05d_predicted_frame" % (args.dataset, step))], 
+                        wandb.log({"avenue_G_frame": [wandb.Image(save_G_frame, caption="%s_%05d_Gabn_abnormal_frame" % (args.dataset, step))],
+                                   "avenue_G_frame_pred": [wandb.Image(save_G_frame_normal, caption="%s_%05d_Gnrm_predicted_frame" % (args.dataset, step))], 
                                    "avenue_target_frame ": [wandb.Image(save_target, caption='%s_%05d_real_sample' % (args.dataset, step))]})
                     vutils.save_image(save_target, os.path.join(log_dir, '%s_%05d_real_sample.jpg' % (args.dataset, step)), normalize=True)
-                    vutils.save_image(save_G_frame, os.path.join(log_dir, '%s_%05d_abnormal_frame.jpg' % (args.dataset, step)), normalize=True)
-                    vutils.save_image(save_G_frame_normal, os.path.join(log_dir, '%s_%05d_predicted_frame.jpg' % (args.dataset, step)), normalize=True)
+                    vutils.save_image(save_G_frame, os.path.join(log_dir, '%s_%05d_Gabn_abnormal_frame.jpg' % (args.dataset, step)), normalize=True)
+                    vutils.save_image(save_G_frame_normal, os.path.join(log_dir, '%s_%05d_Gnrm_predicted_frame.jpg' % (args.dataset, step)), normalize=True)
 
-                    model_dict = {'net_g_norm': generator_normal.state_dict(), 'optimizer_g_norm': optimizer_G_normal.state_dict(),
-                                  'net_d_norm': discriminator_normal.state_dict(), 'optimizer_d_norm': optimizer_D_normal.state_dict(),
-                                  'net_g_abn': generator.state_dict(), 'optimizer_g_abn': optimizer_G.state_dict(),
-                                  'net_d_abn': discriminator.state_dict(), 'optimizer_d_abn': optimizer_D.state_dict(),
+                    model_dict = {'net_g_norm': generator_nrm.state_dict(), 'optimizer_g_norm': optimizer_G_nrm.state_dict(),
+                                  'net_d_norm': discriminator_nrm.state_dict(), 'optimizer_d_norm': optimizer_D_nrm.state_dict(),
+                                  'net_g_abn': generator_abn.state_dict(), 'optimizer_g_abn': Optimizer_G_abn.state_dict(),
+                                  'net_d_abn': discriminator_abn.state_dict(), 'optimizer_d_abn': Optimizer_D_abn.state_dict(),
                                   'net_c': classifier.state_dict(), 'optimizer_c': optimizer_C.state_dict()}
                     # torch.save(model_dict, f'weights/test7_{train_cfg.dataset}_{step}_klloss{args.kldiv_loss}_perceptloss.pth')
                     torch.save(model_dict, f'weights/latest_{train_cfg.dataset}_{step}_flloss{args.wfl_loss}_perceptloss_classifier.pth')
@@ -326,12 +334,12 @@ try:
                     print(f'\nAlready saved: \'{train_cfg.dataset}_{step}_flloss{args.wfl_loss}_perceptloss_classifier.pth\'.')
 
                 if step % train_cfg.val_interval == 0:
-                    auc, auc_comb = val(train_cfg, model=generator_normal, model_abn=generator, model_classifier=classifier, flow_loss=args.wfl_loss)
+                    auc, auc_comb = val(train_cfg, model=generator_nrm, model_abn=generator_abn, model_classifier=classifier, flow_loss=args.wfl_loss)
                     writer.add_scalar('results/auc', auc, global_step=step)
                     writer.add_scalar('results/auc_comb', auc_comb, global_step=step)
                     # writer.add_scalar('results/out_class', out_class, global_step=step)
-                    generator.train()
-                    generator_normal.train()
+                    generator_abn.train()
+                    generator_nrm.train()
                     classifier.train()
 
             step += 1
@@ -342,10 +350,10 @@ try:
                 print(f"AUC (Future Frame): {auc*100}%")
                 print(f"AUC_norm: {auc_comb*100}%")
                 
-                model_dict = {'net_g_norm': generator_normal.state_dict(), 'optimizer_g_norm': optimizer_G_normal.state_dict(),
-                              'net_d_norm': discriminator_normal.state_dict(), 'optimizer_d_norm': optimizer_D_normal.state_dict(),
-                              'net_g_abn': generator.state_dict(), 'optimizer_g_abn': optimizer_G.state_dict(),
-                              'net_d_abn': discriminator.state_dict(), 'optimizer_d_abn': optimizer_D.state_dict(),
+                model_dict = {'net_g_norm': generator_nrm.state_dict(), 'optimizer_g_norm': optimizer_G_nrm.state_dict(),
+                              'net_d_norm': discriminator_nrm.state_dict(), 'optimizer_d_norm': optimizer_D_nrm.state_dict(),
+                              'net_g_abn': generator_abn.state_dict(), 'optimizer_g_abn': Optimizer_G_abn.state_dict(),
+                              'net_d_abn': discriminator_abn.state_dict(), 'optimizer_d_abn': Optimizer_D_abn.state_dict(),
                               'net_c': classifier.state_dict(), 'optimizer_c': optimizer_C.state_dict()}
                 torch.save(model_dict, f'weights/fullnetwork_{train_cfg.dataset}_{step}_flloss{args.wfl_loss}_perceptloss_classifier.pth')
                 print(f'\n Model saved: \'fullnetwork_{train_cfg.dataset}_{step}_flloss{args.wfl_loss}_perceptloss_classifier.pth\'.')
@@ -361,10 +369,10 @@ except KeyboardInterrupt:
     if glob(f'weights/latest*'):
         os.remove(glob(f'weights/latest*')[0])
 
-    model_dict = {'net_g_norm': generator_normal.state_dict(), 'optimizer_g_norm': optimizer_G_normal.state_dict(),
-                  'net_d_norm': discriminator_normal.state_dict(), 'optimizer_d_norm': optimizer_D_normal.state_dict(),
-                  'net_g_abn': generator.state_dict(), 'optimizer_g_abn': optimizer_G.state_dict(),
-                  'net_d_abn': discriminator.state_dict(), 'optimizer_d_abn': optimizer_D.state_dict(),
+    model_dict = {'net_g_norm': generator_nrm.state_dict(), 'optimizer_g_norm': optimizer_G_nrm.state_dict(),
+                  'net_d_norm': discriminator_nrm.state_dict(), 'optimizer_d_norm': optimizer_D_nrm.state_dict(),
+                  'net_g_abn': generator_abn.state_dict(), 'optimizer_g_abn': Optimizer_G_abn.state_dict(),
+                  'net_d_abn': discriminator_abn.state_dict(), 'optimizer_d_abn': Optimizer_D_abn.state_dict(),
                   'net_c': classifier.state_dict(), 'optimizer_c': optimizer_C.state_dict()}
     # torch.save(model_dict, f'weights/test7_latest_{train_cfg.dataset}_{step}_klloss{args.kldiv_loss}_perceptloss.pth')
     torch.save(model_dict, f'weights/latest_{train_cfg.dataset}_{step}_flloss{args.wfl_loss}_perceptloss_classifier.pth')

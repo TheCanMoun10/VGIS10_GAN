@@ -33,17 +33,17 @@ parser.add_argument('--wandb', action='store_true',
 
 def val(cfg, model=None, model_abn=None, model_classifier = None, flow_loss=0.6):
     if model:  # This is for testing during training.
-        generator = model
+        generator_nrm = model
         generator_abn = model_abn
         classifier = model_classifier
-        generator.eval()
+        generator_nrm.eval()
         generator_abn.eval()
         classifier.eval()
     else:
-        generator = UNet(input_channels=12, output_channel=3).cuda().eval()
+        generator_nrm = UNet(input_channels=12, output_channel=3).cuda().eval()
         generator_abn = UNet(input_channels=12, output_channel=3).cuda().eval()
         classifier = d_netclassifier().cuda().eval()
-        generator.load_state_dict(torch.load('weights/' + cfg.trained_model)['net_g_norm'])
+        generator_nrm.load_state_dict(torch.load('weights/' + cfg.trained_model)['net_g_norm'])
         generator_abn.load_state_dict(torch.load('weights/' + cfg.trained_model)['net_g_abn'])
         classifier.load_state_dict(torch.load('weights/' + cfg.trained_model)['net_c'])
         print(f'The pre-trained generator and classifier has been loaded from \'weights/{cfg.trained_model}\'.\n')
@@ -111,7 +111,7 @@ def val(cfg, model=None, model_abn=None, model_classifier = None, flow_loss=0.6)
                 input_frames = torch.from_numpy(input_np).unsqueeze(0).cuda()
                 target_frame = torch.from_numpy(target_np).unsqueeze(0).cuda()
                
-                G_frame = generator(input_frames)
+                G_frame = generator_nrm(input_frames)
                 class_frame = classifier(target_frame)
                 
                 if j % 500 == 0:
