@@ -260,7 +260,7 @@ try:
             temp = time_end
 
             if step != start_iter:
-                if step % 10 == 0:
+                if step % 20 == 0:
                     time_remain = (train_cfg.iters - step) * iter_t
                     eta = str(datetime.timedelta(seconds=time_remain)).split('.')[0]
                     psnr_nrm = psnr_error(G_frame_normal, target_frame)
