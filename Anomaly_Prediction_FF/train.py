@@ -227,7 +227,7 @@ try:
             fl_l_nrm = flow_loss_normal(flow_pred_nrm, flow_gt)
             gan_l_nrm = adversarial_loss_normal(discriminator_nrm(G_frame_normal))
             p_loss_nrm = perceptual_loss_normal(G_frame_normal, target_frame)
-            G_l_t_nrm = 1. * inte_l_nrm + 1. * grad_l_nrm + 0.05 * gan_l_nrm + 2*fl_l_nrm + p_loss_nrm + C_l_t #Normal GAN loss, classifier loss added as this generator is used in evaluation.
+            G_l_t_nrm = 1. * inte_l_nrm + 1. * grad_l_nrm + 0.05 * gan_l_nrm + 2*fl_l_nrm+ C_l_t + p_loss_nrm #Normal GAN loss, classifier loss added as this generator is used in evaluation.
             
             # When training discriminator, don't train generator, so use .detach() to cut off gradients.
             D_l_abn = discriminate_loss(discriminator_abn(target_frame), discriminator_abn(G_frame.detach()))
