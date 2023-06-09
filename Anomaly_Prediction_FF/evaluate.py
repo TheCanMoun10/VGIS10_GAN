@@ -124,8 +124,8 @@ def val(cfg, model=None, model_abn=None, model_classifier = None, flow_loss=0.6)
                     vutils.save_image(save_G_frame, os.path.join(log_dir, '%s_%04d_predicted_frame.png' % (name, j)), normalize=True)
                 test_psnr = psnr_error(G_frame, target_frame).cpu().detach().numpy()
                 psnrs.append(float(test_psnr))
-                # classification.append(class_frame[0][1].cpu().detach().numpy()) # Append normal score.
-                classification.append(class_frame[0][0].cpu().detach().numpy()) # Append abnormal score.
+                # classification.append(class_frame[0][0].cpu().detach().numpy()) # Append abnormal score.
+                classification.append(class_frame[0][1].cpu().detach().numpy()) # Append normal score.
                 
                 if not model:
                     if cfg.show_curve:
