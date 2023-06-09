@@ -350,6 +350,9 @@ try:
                 print(f"AUC (Future Frame): {auc*100}%")
                 print(f"AUC_norm: {auc_comb*100}%")
                 
+                if wandb:
+                    wandb.log({"AUC": auc, "AUC_norm": auc_comb})
+                
                 model_dict = {'net_g_norm': generator_nrm.state_dict(), 'optimizer_g_norm': optimizer_G_nrm.state_dict(),
                               'net_d_norm': discriminator_nrm.state_dict(), 'optimizer_d_norm': optimizer_D_nrm.state_dict(),
                               'net_g_abn': generator_abn.state_dict(), 'optimizer_g_abn': Optimizer_G_abn.state_dict(),
