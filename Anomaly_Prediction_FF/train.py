@@ -219,7 +219,7 @@ try:
             cl_loss_n = torch.mean(classifier_loss(normal_class, normal_labels))
             # Add mean classifier loss.
             C_l_t = (cl_loss_abn + cl_loss_n)/2
-            G_l_t_abn = 1. * inte_l_abn + 1. * grad_l_abn + 0.05 * gan_l_abn + 2*fl_l_abn + p_loss_abn # Abnormal GAN loss
+            G_l_t_abn = 1. * inte_l_abn + 1. * grad_l_abn + 0.05 * gan_l_abn + 2*fl_l_abn + p_loss_abn + C_l_t # Abnormal GAN loss
 
             # Normal branch training:
             inte_l_nrm = intensity_loss_normal(G_frame_normal, target_frame)
@@ -227,7 +227,7 @@ try:
             fl_l_nrm = flow_loss_normal(flow_pred_nrm, flow_gt)
             gan_l_nrm = adversarial_loss_normal(discriminator_nrm(G_frame_normal))
             p_loss_nrm = perceptual_loss_normal(G_frame_normal, target_frame)
-            G_l_t_nrm = 1. * inte_l_nrm + 1. * grad_l_nrm + 0.05 * gan_l_nrm + 2*fl_l_nrm+ C_l_t + p_loss_nrm #Normal GAN loss, classifier loss added as this generator is used in evaluation.
+            G_l_t_nrm = 1. * inte_l_nrm + 1. * grad_l_nrm + 0.05 * gan_l_nrm + 2*fl_l_nrm + p_loss_nrm # Normal GAN loss.
             
             # When training discriminator, don't train generator, so use .detach() to cut off gradients.
             D_l_abn = discriminate_loss(discriminator_abn(target_frame), discriminator_abn(G_frame.detach()))
