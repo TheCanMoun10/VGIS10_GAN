@@ -216,18 +216,19 @@ The results are worse than the baseline, however that is to be expected as the p
 The overal pipeline result is shown below, compared to other SOTA methods, including the baseline for predicting anomalies [Future Frame](https://github.com/StevenLiuWen/ano_pred_cvpr2018).
 
 Highest achieving AUC score is shown in bold and italics, second highest is shown in bold.
-|                         | AUC         |
-|-------------------------|-------------|
-| Giorno et al.           |    78.3%    |
-| Conv-AE                 |     80%     |
-| ConvLSTM-AE             |     77%     |
-| DeepAppearance          |    84.6%    |
-| Unmasking               |    80.6%    |
-| Stacked RNN             |  **81.7%**  |
-| Future Frame (Baseline) | **_85.1%_** |
-| P_abnormal              |    68.35%   |
-| P_normal                |    72.42%   |
-
+|                         | AUC  Avenue      | AUC Ped1 | AUC Ped2 | AUC Shanghaitech |
+|-------------------------|-------------|-------------|-------------|-------------|
+| Giorno et al.           |    78.3%    | | ||
+| Conv-AE                 |     80%     | | | |
+| ConvLSTM-AE             |     77%     | | | |
+| DeepAppearance          |    84.6%    | | | | 
+| Unmasking               |    80.6%    | | | |
+| Stacked RNN             |  **81.7%**  | | | |
+| Future Frame (Baseline) | **_85.1%_** | | | |
+| P_abnormal  (One branch)           |    68.35%   | | | |
+| P_normal    (one branch)            |    72.42%   | | | |
+| P_full (Two branches)  |  75.18% | | | | 
+  
 ### Qualitative results:
 An example of the qualitative results of the pipeline on the Avenue dataset is shown below, comparing psnr score with added classification score.
 
@@ -249,5 +250,5 @@ Adding a second branch to the pipeline to generate predicted normal frames:
 
 ![pipeline update](./content_images/ProposedPipelineUpdate.png)
 ## Future improvements:
-- [ ] Add second branch to pipeline to generate predicted normal frames.
+- [x] Add second branch to pipeline to generate predicted normal frames.
 - [ ] Implement the other datasets.
