@@ -215,19 +215,19 @@ The results are worse than the baseline, however that is to be expected as the p
 ### Quantitative results:
 The overal pipeline result is shown below, compared to other SOTA methods, including the baseline for predicting anomalies [Future Frame](https://github.com/StevenLiuWen/ano_pred_cvpr2018).
 
-Highest achieving AUC score is shown in bold and italics, second highest is shown in bold.
-|                         | AUC  Avenue      | AUC Ped1 | AUC Ped2 | AUC Shanghaitech |
+Highest achieving AUC score on each dataset is shown in bold and italics, second highest is shown in bold.
+|                         | AUC  Avenue      | AUC USCD Ped1 | AUC USCD Ped2 | AUC Shanghaitech |
 |-------------------------|-------------|-------------|-------------|-------------|
-| Giorno et al.           |    78.3%    | | ||
-| Conv-AE                 |     80%     | | | |
-| ConvLSTM-AE             |     77%     | | | |
-| DeepAppearance          |    84.6%    | | | | 
-| Unmasking               |    80.6%    | | | |
-| Stacked RNN             |  **81.7%**  | | | |
-| Future Frame (Baseline) | **_85.1%_** | | | |
-| P_abnormal  (One branch)           |    68.35%   | | | |
-| P_normal    (one branch)            |    72.42%   | | | |
-| P_full (Two branches)  |  75.18% | | | | 
+| Giorno et al.           |    78.3%    |    N/A      |     N/A     |    N/A      |
+| Conv-AE                 |     80%     | 75%         |     85%     |   60.9%     |
+| ConvLSTM-AE             |     77%     | 75.5%       |     88.1%   |    N/A      |
+| DeepAppearance          |    84.6%    |             |             |             | 
+| Unmasking               |    80.6%    |             |     82.2%   |             |
+| Stacked RNN             |  **81.7%**  |             |     92.2%   |             |
+| Future Frame (Baseline) | **_85.1%_** |             |     95.4%   |             |
+| P_abnormal  (One branch)|    68.35%   |    N/A      |     N/A     |    N/A      |
+| P_normal    (one branch)|    72.42%   |    N/A      |     N/A     |    N/A      |
+| P_full (Two branches)   |    75.18%   |             |     83.23%  |             | 
   
 ### Qualitative results:
 An example of the qualitative results of the pipeline on the Avenue dataset is shown below, comparing psnr score with added classification score.
