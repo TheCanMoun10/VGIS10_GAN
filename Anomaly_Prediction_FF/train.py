@@ -238,15 +238,17 @@ try:
             # Or just do .step() after all the gradients have been computed, like the following way:
             Optimizer_D_abn.zero_grad()
             optimizer_D_nrm.zero_grad()
-            D_l_nrm.backward(retain_graph=True)
             D_l_abn.backward(retain_graph=True)
+            D_l_nrm.backward(retain_graph=True)
+
             # D_l_t.backward()
             Optimizer_G_abn.zero_grad()
             optimizer_G_nrm.zero_grad()
             optimizer_C.zero_grad()
 
-            G_l_t_nrm.backward(retain_graph=True)
             G_l_t_abn.backward(retain_graph=True)
+            G_l_t_nrm.backward(retain_graph=True)
+
 
             Optimizer_D_abn.step()
             Optimizer_G_abn.step()
