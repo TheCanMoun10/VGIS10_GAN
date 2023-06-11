@@ -219,7 +219,7 @@ try:
             cl_loss_n = torch.mean(classifier_loss(normal_class, normal_labels))
             # Add mean classifier loss.
             C_l_t = (cl_loss_abn + cl_loss_n)/2
-            G_l_t_abn = 1. * inte_l_abn + 1. * grad_l_abn + 0.05 * gan_l_abn + 2*fl_l_abn + p_loss_abn + C_l_t # Abnormal GAN loss
+            G_l_t_abn = 1. * inte_l_abn + 1. * grad_l_abn + 0.05 * gan_l_abn + 2*fl_l_abn + C_l_t + p_loss_abn # Abnormal GAN loss + Classifier loss.
 
             # Normal branch training:
             inte_l_nrm = intensity_loss_normal(G_frame_normal, target_frame)
@@ -238,15 +238,16 @@ try:
             # Or just do .step() after all the gradients have been computed, like the following way:
             Optimizer_D_abn.zero_grad()
             optimizer_D_nrm.zero_grad()
-            D_l_abn.backward(retain_graph=True)
             D_l_nrm.backward(retain_graph=True)
+            D_l_abn.backward(retain_graph=True)
             # D_l_t.backward()
             Optimizer_G_abn.zero_grad()
             optimizer_G_nrm.zero_grad()
             optimizer_C.zero_grad()
 
-            G_l_t_abn.backward(retain_graph=True)
             G_l_t_nrm.backward(retain_graph=True)
+            G_l_t_abn.backward(retain_graph=True)
+
             Optimizer_D_abn.step()
             Optimizer_G_abn.step()
             optimizer_G_nrm.step()

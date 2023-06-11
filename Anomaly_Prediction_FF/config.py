@@ -11,9 +11,9 @@ if not os.path.exists('results'):
     os.mkdir('results')
 
 share_config = {'mode': 'training',
-                'dataset': 'avenue',
+                'dataset': 'ped2',
                 'img_size': (128, 128),
-                'data_root': './dataset/avenue/'}  # remember the final '/'
+                'data_root': './dataset/ped2/'}  # remember the final '/'
 
 
 class dict2class:

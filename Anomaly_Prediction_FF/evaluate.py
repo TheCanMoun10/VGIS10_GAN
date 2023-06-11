@@ -57,7 +57,7 @@ def val(cfg, model=None, model_abn=None, model_classifier = None, flow_loss=0.6)
     psnr_group = []
     classification_group = []
 
-    log_dir = os.path.join('./evals', 'avenue', 'classifier-tests', 'flow_loss'+str(flow_loss)) # depending on dataset and test change accordingly.
+    log_dir = os.path.join('./evals', 'ped2' 'classifier-tests', 'flow_loss'+str(flow_loss)) # depending on dataset and test change accordingly.
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
 
