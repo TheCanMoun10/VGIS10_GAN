@@ -117,7 +117,7 @@ class Label_loader:
         return all_gt
 
     def load_shanghaitech(self):
-        np_list = glob.glob(f'{self.cfg.data_root}/test/test_frame_mask/*.npy')
+        np_list = glob.glob(f'{self.cfg.data_root}/frames/test_frame_mask/*.npy')
         np_list.sort()
 
         gt = []

@@ -51,7 +51,7 @@ def val(cfg, model=None, model_abn=None, model_classifier = None, flow_loss=0.6)
     video_folders = os.listdir(cfg.test_data)
     video_folders.sort()
     video_folders = [os.path.join(cfg.test_data, aa) for aa in video_folders]
-    print(video_folders)
+    # print(video_folders)
     
     fps = 0
     psnr_group = []
