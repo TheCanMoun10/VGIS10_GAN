@@ -78,7 +78,7 @@ class test_dataset:
 
 class Label_loader:
     def __init__(self, cfg, video_folders):
-        assert cfg.dataset in ('ped2', 'avenue', 'shanghaitech', 'IITB_corridor'), f'Did not find the related gt for \'{cfg.dataset}\'.'
+        assert cfg.dataset in ('ped2', 'ped1', 'avenue', 'shanghaitech', 'IITB_corridor'), f'Did not find the related gt for \'{cfg.dataset}\'.'
         self.cfg = cfg
         self.name = cfg.dataset
         self.frame_path = cfg.test_data
